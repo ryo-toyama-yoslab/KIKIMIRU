@@ -1,0 +1,16 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <!-- Notice that utilize as parent the HudTheme from HUD.RESOURCES. -->
+    <style name="AppTheme" parent="HudTheme">
+        <!-- Customize your theme here. -->
+
+    </style>
+
+    <!-- Notice that utilize as parent the HudTheme.Light Theme from HUD.RESOURCES. -->
+    <style name="AppTheme.Light" parent="HudTheme.Light">
+        <!-- Customize your theme here. -->
+
+    </style>
+
+</resources>

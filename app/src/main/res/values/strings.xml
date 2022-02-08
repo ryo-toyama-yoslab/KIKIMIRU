@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">BladeSampleApp</string>
+    <string name="appwidget_text">EXAMPLE</string>
+    <string name="add_widget">Add widget</string>
+    <string name="word">word: </string>
+    <string name="hint">any words</string>
+    <string name="post">post data</string>
+    <string name="browser">browser</string>
+    <string name="alertLevel_one">アラートレベル1</string>
+    <string name="alertLevel_two">アラートレベル2</string>
+    <string name="alertLevel_three">アラートレベル3</string>
+    <string name="setting_title">アラートレベルの設定\n手技の経験量により選択</string>
+    <string name="alert_one">レベル1：経験量・低</string>
+    <string name="alert_two">レベル2：経験量・中</string>
+    <string name="alert_three">レベル3：経験量・高</string>
+    <string name="mark_level1">穿刺部位は腸骨\n(上後腸骨棘)です</string>
+    <string name="mark_level2">麻酔針で穿刺針の長さを\n調整してください</string>
+    <string name="mark_level3">抗血小板剤、抗凝固剤の内服は\nありませんか</string>
+    <string name="spinal_level1_1">左右腸骨稜上縁を結ぶ線(ヤコビー線)が交差する\n第４腰椎を目安に第3～4または\n第4～5の腰椎間腔から穿刺してください</string>
+    <string name="spinal_level1_2">体勢は、おへそを見るように首を曲げて\n膝を抱え、えびのように身体を丸めます。</string>
+    <string name="spinal_level3">抗血小板剤、抗凝固剤の内服は\nありませんか</string>
+    <string name="central_catheter_in_level1">鎖骨下動脈を穿刺しないように\n針は寝かせてください</string>
+    <string name="central_catheter_in_level3">抗血小板剤、抗凝固剤の内服は\nありませんか</string>
+    <string name="blood_cl_bottle_level3">血液培養は２セット\n採取してください</string>
+    <string name="iryo_name_Kotuzuisennsi">医療行為：骨髄穿刺</string>
+    <string name="iryo_name_CatheterSounyuu">医療行為：中心静脈カテーテル挿入</string>
+    <string name="iryo_name_YoutuiSensi">医療行為：腰椎穿刺</string>
+    <string name="iryo_name_KetuekiBaiyou">医療行為：血液培養</string>
+</resources>
