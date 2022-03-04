@@ -1,3 +1,0 @@
-# KIKIMIRU
-
-For development
