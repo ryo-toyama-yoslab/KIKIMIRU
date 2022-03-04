@@ -328,29 +328,32 @@ public class MainActivity extends ActionMenuActivity{
                     picture_count = 0;
                     take_picture();
                 }
+
+                Log.d("result", "認識結果:" + result);
+
                 //骨髄穿刺針の注意喚起情報表示
-                /*if(result.contains("dog")){
-                    try{
+                /*if(result.contains("kotuzui")) {
+                    try {
                         Thread.sleep(2000);
-                    }catch(InterruptedException e) {
+                    } catch (InterruptedException e) {
                     }
                     attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
                     attention_info.setText(getResources().getString(R.string.mark_level1));
-                    if(attention_info.getText().toString().equals(getResources().getString(R.string.mark_level1))){//表示が終わってから5秒待機
-                        try{
-                            Log.d("今の注意喚起情報は",attention_info.getText().toString());
+                    if (attention_info.getText().toString().equals(getResources().getString(R.string.mark_level1))) {//表示が終わってから5秒待機
+                        try {
+                            Log.d("今の注意喚起情報は", attention_info.getText().toString());
                             Thread.sleep(5000);
 
-                        }catch(InterruptedException e) {
+                        } catch (InterruptedException e) {
                         }
                     }
                     attention_info.setTextColor(getResources().getColor(R.color.hud_blue));
                     attention_info.setText(getResources().getString(R.string.mark_level2));
-                    if(attention_info.getText().equals(getResources().getString(R.string.mark_level2))){//表示が終わってから5秒待機
-                        try{
+                    if (attention_info.getText().equals(getResources().getString(R.string.mark_level2))) {//表示が終わってから5秒待機
+                        try {
                             Thread.sleep(5000);
 
-                        }catch(InterruptedException e) {
+                        } catch (InterruptedException e) {
                         }
                     }
                     attention_info.setTextColor(getResources().getColor(R.color.hud_red));
@@ -360,7 +363,7 @@ public class MainActivity extends ActionMenuActivity{
                 //レベル1に設定した場合
                 if(nowLevel == 1){
                     //骨髄穿刺針の注意喚起情報表示
-                    if(result.contains("dog")){
+                    if(result.contains("kotuzui")){
                         alert_level.setText(R.string.alertLevel_one);
                         alert_level.setTextColor(getResources().getColor(R.color.hud_yellow));
                         iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
