@@ -60,7 +60,6 @@ public class MainActivity extends ActionMenuActivity{
     private MenuItem HelloMenuItem;
     private MenuItem VuzixMenuItem;
     private MenuItem BladeMenuItem;
-    private ImageView taked_picure;
     private ImageView encoded_bitmap;
 
     private UploadTask uploadTask;
@@ -96,7 +95,6 @@ public class MainActivity extends ActionMenuActivity{
         setContentView(R.layout.activity_main);
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
-        taked_picure = findViewById(R.id.taked_picture);
         returnText = findViewById(R.id.return_text);
         attention_info = findViewById(R.id.attention_info);
 
@@ -118,10 +116,6 @@ public class MainActivity extends ActionMenuActivity{
         // Create an instance of Camera
         mCamera = getCameraInstance();
 
-        // Create our Preview view and set it as the content of our activity.
-        mPreview = new CameraPreview(this, mCamera);
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        preview.addView(mPreview);
 
         //開始時(nowLevel=0)で設定画面に遷移
         Intent intent = new Intent(getApplication(), Setting.class);
@@ -141,33 +135,6 @@ public class MainActivity extends ActionMenuActivity{
            }
         );
 
-        // 変更テキスト送信ボタンの割り当て
-        Button post_btn = findViewById(R.id.post_text);
-        post_btn.setOnClickListener(new View.OnClickListener() {
-                      @Override
-                      public void onClick(View v) {
-                          if(url.length() != 0){
-                              // ボタンをタップして非同期処理を開始
-                              uploadTask = new UploadTask(MainActivity.this);
-                              // Listenerを設定
-                              uploadTask.setListener(createListener());
-                              uploadTask.execute(new Param(url, bitmap2));
-                          }
-                      }
-                  }
-        );
-
-        // ボタン割り当て
-        Button btn = findViewById(R.id.button);
-        btn.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        // get an image from the camera
-                        //mCamera.takePicture(null, null, mPicture);
-                    }
-                }
-        );
 
         // Add a listener to the Capture button
         if(checkCameraHardware(this)==true) {
@@ -193,6 +160,13 @@ public class MainActivity extends ActionMenuActivity{
         super.onActivityResult(requestCode, resultCode, intent);
         if(resultCode == RESULT_OK && requestCode == 1001 && intent != null) {
             nowLevel = intent.getIntExtra("nowLevel",0);
+            if(nowLevel == 1){
+                alert_level.setText(getResources().getString(R.string.alert_one));
+            }else if(nowLevel == 2){
+                alert_level.setText(getResources().getString(R.string.alert_two));
+            }else if(nowLevel == 3){
+                alert_level.setText(getResources().getString(R.string.alert_three));
+            }
             //Log.d("returnLevelは",Integer.toString(nowLevel));
         }
     }
@@ -244,10 +218,6 @@ public class MainActivity extends ActionMenuActivity{
                 theImage = BitmapFactory.decodeStream(imageInput);
                 bitmap2 = Bitmap.createScaledBitmap(theImage, 416, 416, false);
 
-                //写真確認用
-                taked_picure.setImageBitmap(bitmap2);
-                returnText.setText("認識を開始する！");
-
                 //写真撮影後，すぐにサーバにアップロード
                 uploadTask = new UploadTask(MainActivity.this);
                 uploadTask.setListener(createListener());
@@ -265,48 +235,6 @@ public class MainActivity extends ActionMenuActivity{
         }
     };
 
-    /*画像をファイルに保存
-
-    private static Uri getOutputMediaFileUri(int type){
-        return Uri.fromFile(getOutputMediaFile(type));
-    }
-
-
-    private static File getOutputMediaFile(int type){
-        // To be safe, you should check that the SDCard is mounted
-        // using Environment.getExternalStorageState() before doing this.
-
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "MyCameraApp");
-        // This location works best if you want the created images to be shared
-        // between applications and persist after your app has been uninstalled.
-
-        // Create the storage directory if it does not exist
-        if (! mediaStorageDir.exists()){
-            if (! mediaStorageDir.mkdirs()){
-                Log.d("MyCameraApp", "failed to create directory");
-                return null;
-            }
-        }
-
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        //Log.d("タイムスタンプ：", timeStamp);
-        File mediaFile;
-        if (type == MEDIA_TYPE_IMAGE){
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "IMG_"+ timeStamp + ".jpg");
-        }else if(type == MEDIA_TYPE_VIDEO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "VID_"+ timeStamp + ".mp4");
-        }else{
-            return null;
-        }
-
-        return mediaFile;
-    }
-
-*/
 
     //認識結果が返ってくる
     private UploadTask.Listener createListener() {
@@ -321,49 +249,22 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("retake_check", "現在時刻:" + timeStamp);
                     take_picture();
                 }else{
-                    attention_info.setText(result);
                     Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
                     String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                     Log.d("retake_check", "現在時刻:" + timeStamp);
+                    returnText.setVisibility(View.INVISIBLE);
                     picture_count = 0;
                     take_picture();
                 }
 
                 Log.d("result", "認識結果:" + result);
 
-                //骨髄穿刺針の注意喚起情報表示
-                /*if(result.contains("kotuzui")) {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                    }
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                    attention_info.setText(getResources().getString(R.string.mark_level1));
-                    if (attention_info.getText().toString().equals(getResources().getString(R.string.mark_level1))) {//表示が終わってから5秒待機
-                        try {
-                            Log.d("今の注意喚起情報は", attention_info.getText().toString());
-                            Thread.sleep(5000);
 
-                        } catch (InterruptedException e) {
-                        }
-                    }
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_blue));
-                    attention_info.setText(getResources().getString(R.string.mark_level2));
-                    if (attention_info.getText().equals(getResources().getString(R.string.mark_level2))) {//表示が終わってから5秒待機
-                        try {
-                            Thread.sleep(5000);
-
-                        } catch (InterruptedException e) {
-                        }
-                    }
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                    attention_info.setText(getResources().getString(R.string.mark_level3));
-                }
-                */
                 //レベル1に設定した場合
                 if(nowLevel == 1){
                     //骨髄穿刺針の注意喚起情報表示
                     if(result.contains("kotuzui")){
+
                         alert_level.setText(R.string.alertLevel_one);
                         alert_level.setTextColor(getResources().getColor(R.color.hud_yellow));
                         iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
@@ -522,14 +423,6 @@ public class MainActivity extends ActionMenuActivity{
     @Override
     protected boolean onCreateActionMenu(Menu menu) {
         super.onCreateActionMenu(menu);
-
-        //getMenuInflater().inflate(R.menu.menu, menu);
-
-        //HelloMenuItem = menu.findItem(R.id.item1);
-        //VuzixMenuItem = menu.findItem(R.id.item2);
-        //BladeMenuItem = menu.findItem(R.id.item3);
-        //mainText = findViewById(R.id.mainTextView);
-
         return true;
     }
 
@@ -538,63 +431,10 @@ public class MainActivity extends ActionMenuActivity{
     protected boolean alwaysShowActionMenu() {
         return false;
     }
-    /*
-        private void updateMenuItems() {
-            if (HelloMenuItem == null) {
-                return;
-            }
 
-            VuzixMenuItem.setEnabled(false);
-            BladeMenuItesetEnabled(false);
-        }
-
-
-    /*
-        //Action Menu Click events
-        //This events where register via the XML for the menu definitions.
-        public void showHello(MenuItem item){
-
-            showToast("Hello World!");
-            mainText.setText("Hello World!");
-            VuzixMenuItem.setEnabled(false);
-            BladeMenuItem.setEnabled(false);
-        }
-
-        public void showVuzix(MenuItem item){
-
-        }
-
-        public void showBlade(MenuItem item){
-            showToast("Blade");
-            mainText.setText("Blade");
-        }
-
-        private void showToast(final String text){
-
-            final Activity activity = this;
-
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(activity, text, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    */
     @Override
     protected void onDestroy() {
         uploadTask.setListener(null);
         super.onDestroy();
     }
-
-    /*
-    private UploadTask.Listener createListener() {
-        return new UploadTask.Listener() {
-            @Override
-            public void onSuccess(String result) {
-                textView.setText(result);
-            }
-        };
-    }
-    */
 }

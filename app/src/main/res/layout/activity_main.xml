@@ -14,16 +14,7 @@ tools:context=".MainActivity">
         android:layout_height="wrap_content"
         android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
-        android:text="設定" />
-
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
-        android:src="@drawable/haikei_001"
-        android:visibility="invisible" />
+        android:text="@string/setting_button" />
 
     <TextView
         android:id="@+id/iryou_name"
@@ -31,6 +22,7 @@ tools:context=".MainActivity">
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
+        android:text="@string/iryo_name_default"
         android:textAlignment="viewStart"
         android:textColor="@color/hud_white"
         android:textSize="24sp"
@@ -54,21 +46,11 @@ tools:context=".MainActivity">
         android:layout_height="wrap_content"
         android:layout_alignStart="@+id/iryou_name"
         android:layout_below="@+id/iryou_name"
+        android:text="@string/alertLevel_default"
         android:textAlignment="textEnd"
-        android:textColor="@color/hud_red"
+        android:textColor="@color/hud_white"
         android:textSize="24sp"
         android:visibility="visible" />
-
-    <FrameLayout
-        android:id="@+id/camera_preview"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
-        android:layout_weight="1"
-        android:visibility="invisible">
-
-    </FrameLayout>
 
     <TextView
         android:id="@+id/return_text"
@@ -78,14 +60,13 @@ tools:context=".MainActivity">
         android:layout_centerHorizontal="true"
         android:layout_marginTop="32dp"
         android:layout_weight="1"
-        android:text="PUSH CAPTURE"
         android:textAlignment="center"
-        android:textColor="@color/colorPrimaryDark"
-        android:visibility="invisible" />
+        android:textColor="@color/hud_white"
+        android:visibility="visible" />
 
     <LinearLayout
-        android:layout_width="306dp"
-        android:layout_height="wrap_content"
+        android:layout_width="100dp"
+        android:layout_height="70dp"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
         android:layout_gravity="bottom"
@@ -95,42 +76,16 @@ tools:context=".MainActivity">
 
 
         <Button
-            android:id="@+id/button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="カメラ起動"
-            android:textColor="@color/hud_transparent"
-            android:visibility="invisible" />
-
-        <Button
             android:id="@+id/button_capture"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:layout_alignParentStart="true"
             android:layout_gravity="center"
             android:layout_weight="1"
             android:text="Capture"
             android:visibility="visible" />
 
-        <Button
-            android:id="@+id/post_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="POST"
-            android:visibility="invisible" />
     </LinearLayout>
-
-    <ImageView
-        android:id="@+id/taked_picture"
-        android:layout_width="127dp"
-        android:layout_height="121dp"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="73dp"
-        android:layout_weight="1"
-        android:visibility="invisible" />
 
 
 </RelativeLayout>

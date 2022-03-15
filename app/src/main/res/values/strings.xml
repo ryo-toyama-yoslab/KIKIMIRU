@@ -6,9 +6,11 @@
     <string name="hint">any words</string>
     <string name="post">post data</string>
     <string name="browser">browser</string>
-    <string name="alertLevel_one">アラートレベル1</string>
-    <string name="alertLevel_two">アラートレベル2</string>
-    <string name="alertLevel_three">アラートレベル3</string>
+    <string name="setting_button">設定</string>
+    <string name="alertLevel_default">アラートレベル：</string>
+    <string name="alertLevel_one">アラートレベル：1</string>
+    <string name="alertLevel_two">アラートレベル：2</string>
+    <string name="alertLevel_three">アラートレベル：3</string>
     <string name="setting_title">アラートレベルの設定\n手技の経験量により選択</string>
     <string name="alert_one">レベル1：経験量・低</string>
     <string name="alert_two">レベル2：経験量・中</string>
@@ -22,6 +24,7 @@
     <string name="central_catheter_in_level1">鎖骨下動脈を穿刺しないように\n針は寝かせてください</string>
     <string name="central_catheter_in_level3">抗血小板剤、抗凝固剤の内服は\nありませんか</string>
     <string name="blood_cl_bottle_level3">血液培養は２セット\n採取してください</string>
+    <string name="iryo_name_default">医療行為：</string>
     <string name="iryo_name_Kotuzuisennsi">医療行為：骨髄穿刺</string>
     <string name="iryo_name_CatheterSounyuu">医療行為：中心静脈カテーテル挿入</string>
     <string name="iryo_name_YoutuiSensi">医療行為：腰椎穿刺</string>

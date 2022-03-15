@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.util.Base64;
 import android.util.Log;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.BufferedOutputStream;
@@ -46,7 +45,7 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
 
     public UploadTask(Activity activity){
         mActivity = activity;
-        ((TextView)mActivity.findViewById(R.id.return_text)).setText("認識中だよ(^ - ~)");
+        ((TextView)mActivity.findViewById(R.id.return_text)).setText("Now Recognition");
 
         mainActivity = new MainActivity();
     }
