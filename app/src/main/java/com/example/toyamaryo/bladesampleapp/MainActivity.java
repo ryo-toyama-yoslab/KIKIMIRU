@@ -104,7 +104,6 @@ public class MainActivity extends ActionMenuActivity{
 
         soundPlayer = new SoundPlayer(this);
 
-
         if(nowLevel == 1){
             attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
         }else if(nowLevel == 2){
@@ -166,13 +165,6 @@ public class MainActivity extends ActionMenuActivity{
         super.onActivityResult(requestCode, resultCode, intent);
         if(resultCode == RESULT_OK && requestCode == 1001 && intent != null) {
             nowLevel = intent.getIntExtra("nowLevel",0);
-            if(nowLevel == 1){
-                alert_level.setText(getResources().getString(R.string.alert_one));
-            }else if(nowLevel == 2){
-                alert_level.setText(getResources().getString(R.string.alert_two));
-            }else if(nowLevel == 3){
-                alert_level.setText(getResources().getString(R.string.alert_three));
-            }
         }
     }
 

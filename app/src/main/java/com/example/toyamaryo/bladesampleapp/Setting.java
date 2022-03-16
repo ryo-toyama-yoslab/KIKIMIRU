@@ -15,6 +15,7 @@ import com.vuzix.hud.actionmenu.ActionMenuActivity;
 public class Setting extends ActionMenuActivity {
 
     public Switch s1, s2, s3;
+    public Button setting_btn;
     int alertLevel = 0;
 
     @Override
@@ -22,9 +23,12 @@ public class Setting extends ActionMenuActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
 
+        setting_btn = findViewById(R.id.setting_button);
         s1 = findViewById(R.id.alert_1_switch);
         s2 = findViewById(R.id.alert_2_switch);
         s3 = findViewById(R.id.alert_3_switch);
+
+        setting_btn.setEnabled(false);//設定ボタンを非アクティブ
         s1.setText("未選択");
         s2.setText("未選択");
         s3.setText("未選択");
@@ -37,14 +41,21 @@ public class Setting extends ActionMenuActivity {
         if(alertLevel == 1){
             s1.setChecked(true);
             s1.setText("選択");
+            setting_btn.setEnabled(true);
         }else if(alertLevel == 2){
             s2.setChecked(true);
             s2.setText("選択");
-        }else if(alertLevel == 3){
+            setting_btn.setEnabled(true);
+        }else if(alertLevel == 3) {
             s3.setChecked(true);
             s3.setText("選択");
+            setting_btn.setEnabled(true);
         }
 
+        //未選択状態では設定ボタンを非アクティブ
+        if(alertLevel == 0){
+            setting_btn.setEnabled(false);
+        }
 
         //レベル1(経験度低の医療従事者)を選択した場合
         s1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -60,11 +71,12 @@ public class Setting extends ActionMenuActivity {
                     s1.setChecked(true);
                     s1.setText("選択");
                     alertLevel = 1;
+                    setting_btn.setEnabled(true);
                 } else {
                     s1.setChecked(false);
                     s1.setText("未選択");
+                    setting_btn.setEnabled(false);
                 }
-
             }
 
         });
@@ -83,9 +95,11 @@ public class Setting extends ActionMenuActivity {
                     s2.setChecked(true);
                     s2.setText("選択");
                     alertLevel = 2;
+                    setting_btn.setEnabled(true);
                 }else{
                     s2.setChecked(false);
                     s2.setText("未選択");
+                    setting_btn.setEnabled(false);
                 }
             }
         });
@@ -104,15 +118,16 @@ public class Setting extends ActionMenuActivity {
                     s3.setChecked(true);
                     s3.setText("選択");
                     alertLevel = 3;
+                    setting_btn.setEnabled(true);
                 } else {
                     s3.setChecked(false);
                     s3.setText("未選択");
+                    setting_btn.setEnabled(false);
                 }
             }
         });
 
         //メイン画面(MainActivityに戻るボタン)
-        Button setting_btn = findViewById(R.id.setting_button);
         setting_btn.setOnClickListener(new View.OnClickListener() {
                @Override
                public void onClick(View v) {
