@@ -125,21 +125,7 @@ public class RecieveTask extends AsyncTask<String, Void, String> {
             // 接続
             httpConn.connect();
 
-            /*
-            try(// POSTデータ送信処理
-                OutputStream outStream = httpConn.getOutputStream()) {
-                outStream.write( word.getBytes(StandardCharsets.UTF_8));
-                outStream.flush();
-                Log.d("debug","flush");
-            } catch (IOException e) {
-                // POST送信エラー
-                e.printStackTrace();
-                result = "POST送信エラー";
-            }
-            */
 
-
-            //
             try {
                 int resp = httpConn.getResponseCode();
                 Log.d(TAG, "responseCode" + resp);
@@ -156,15 +142,6 @@ public class RecieveTask extends AsyncTask<String, Void, String> {
             }
 
 
-           /* final int status = httpConn.getResponseCode();
-            if (status == HttpURLConnection.HTTP_OK) {
-                // レスポンスを受け取る処理等
-                result="HTTP_OK";
-            }
-            else{
-                result="status="+String.valueOf(status);
-        }*/
-
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -179,7 +156,8 @@ public class RecieveTask extends AsyncTask<String, Void, String> {
     @Override
     protected void onPostExecute(String result) {
         super.onPostExecute(result);
-        ((TextView)mActivity.findViewById(R.id.return_text)).setText(result);
+        //結果としてどんな文字列が返ってきているかの確認用(使用時はsituation_infoの不可視設定を解除する必要有)
+        //((TextView)mActivity.findViewById(R.id.situation_info)).setText(result);
 
         if (listener != null) {
             listener.onSuccess(result);

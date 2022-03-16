@@ -45,7 +45,7 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
 
     public UploadTask(Activity activity){
         mActivity = activity;
-        ((TextView)mActivity.findViewById(R.id.return_text)).setText("Now Recognition");
+        ((TextView)mActivity.findViewById(R.id.situation_info)).setText("Now Recognition");
 
         mainActivity = new MainActivity();
     }
@@ -167,35 +167,7 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
             } catch (IOException e) {
                 // POST送信エラー
                 e.printStackTrace();
-                result = "POST送信エラー";
             }
-
-            /*
-            try {
-                int resp = httpConn.getResponseCode();
-                Log.d(TAG, "responseCode" + resp);
-                InputStream is = httpConn.getInputStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-                String line = "";
-                while ((line = reader.readLine()) != null)
-                    sb.append(line);
-                is.close();
-                Log.d(TAG, "ReturnFromServer " + sb.toString());
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            */
-
-           /* final int status = httpConn.getResponseCode();
-            if (status == HttpURLConnection.HTTP_OK) {
-                // レスポンスを受け取る処理等
-                result="HTTP_OK";
-            }
-            else{
-                result="status="+String.valueOf(status);
-        }*/
 
     } catch (IOException e) {
         e.printStackTrace();
@@ -213,7 +185,6 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
     protected void onPostExecute(String result) {
         //認識結果のラベル名をテキスト表示
         super.onPostExecute(result);
-        //((TextView)mActivity.findViewById(R.id.return_text)).setText(result);
 
         if (listener != null) {
             listener.onSuccess(result);
