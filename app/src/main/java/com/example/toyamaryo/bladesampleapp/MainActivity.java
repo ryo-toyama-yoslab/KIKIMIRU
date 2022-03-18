@@ -319,6 +319,7 @@ public class MainActivity extends ActionMenuActivity{
         if(nowLevel == 1){
             //骨髄穿刺針の注意喚起情報表示
             if(result.contains("kotuzui")){
+                Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
                 situation_info.setVisibility(View.INVISIBLE);
                 alert_level.setText(R.string.alertLevel_one);
                 alert_level.setTextColor(getResources().getColor(R.color.hud_yellow));
@@ -327,22 +328,72 @@ public class MainActivity extends ActionMenuActivity{
                 attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
                 attention_info.setText(getResources().getString(R.string.mark_level1));
 
-                /*try{
+                new Thread(new Runnable() {
+                    public void run() {
+                        Log.d("マルチスレッドに移行", "骨髄穿刺レベル2を表示するマルチスレッドに移行");
+                        try {
+                            Log.d("骨髄穿刺_レベル2待機", "骨髄穿刺レベル2を表示まで5秒待機");
+                            Thread.sleep(5000); // 5秒待つ
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        attention_info.post(new Runnable() {
+                            public void run() {
+                                Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
+                                soundPlayer.playLevel2Sound();
+                                alert_level.setText(R.string.alertLevel_two);
+                                alert_level.setTextColor(Color.rgb(255,165,0));
+                                attention_info.setTextColor(Color.rgb(255,165,0));
+                                attention_info.setText(getResources().getString(R.string.mark_level2));
+                            }
+                        });
+
+                        new Thread(new Runnable() {
+                            public void run() {
+                                Log.d("マルチスレッドに移行", "骨髄穿刺レベル3を表示するマルチスレッドに移行");
+                                try {
+                                    Log.d("骨髄穿刺_レベル3待機", "骨髄穿刺レベル3を表示まで5秒待機");
+                                    Thread.sleep(5000); // 5秒待つ
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                attention_info.post(new Runnable() {
+                                    public void run() {
+                                        Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
+                                        soundPlayer.playLevel3Sound();
+                                        alert_level.setText(R.string.alertLevel_three);
+                                        alert_level.setTextColor(getResources().getColor(R.color.hud_red));
+                                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
+                                        attention_info.setText(getResources().getString(R.string.mark_level3));
+                                    }
+                                });
+                            }
+                        }).start();
+
+                    }
+                }).start();
+
+
+                /*
+                try{
                     Thread.sleep(5000);
-                }catch(InterruptedException e) {
+                }catch(InterruptedException e){
                 }
+                Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
                 soundPlayer.playLevel2Sound();
-                attention_info.setTextColor(Color.rgb(255,165,0));//(getResources().getColor(R.color.hud_blue));
+                attention_info.setTextColor(Color.rgb(255,165,0));
                 attention_info.setText(getResources().getString(R.string.mark_level2));
                 try{
                     Thread.sleep(5000);
                 }catch(InterruptedException e) {
                 }
+                Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
                 soundPlayer.playLevel3Sound();
                 attention_info.setTextColor(getResources().getColor(R.color.hud_red));
                 attention_info.setText(getResources().getString(R.string.mark_level3));
                 */
             }
+
 
             //腰椎穿刺針の注意喚起情報表示
             if(result.contains("spinal_needle")){
