@@ -52,6 +52,9 @@ public class SetInfo_blood {
         //スピーカー鳴音
         soundPlayer.playLevel3Sound();
 
+        //医療行為名を骨髄穿刺に変更
+        ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_KetuekiBaiyou);
+
         //アラートレベルが3であることを提示，テキストからを変更
         ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_three);
         ((TextView)mActivity.findViewById(R.id.alert_level)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
