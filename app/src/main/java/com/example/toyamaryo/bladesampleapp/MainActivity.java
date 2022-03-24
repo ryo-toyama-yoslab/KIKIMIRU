@@ -6,96 +6,62 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CaptureRequest;
-import android.media.Image;
-import android.net.Uri;
 import android.os.Bundle;
 
 import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.util.Base64;
+import android.os.Handler;
 import android.util.Log;
-import android.util.Size;
-import android.view.MenuItem;
 import android.view.Menu;
-import android.view.Surface;
-import android.view.TextureView;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.TextView;
-import android.app.Activity;
-import android.widget.Toast;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Timer;
 
-
-import static android.content.ContentValues.TAG;
-import static java.lang.Thread.sleep;
-//import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
-//import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
 
 public class MainActivity extends ActionMenuActivity{
-    private MenuItem HelloMenuItem;
-    private MenuItem VuzixMenuItem;
-    private MenuItem BladeMenuItem;
-    private ImageView encoded_bitmap;
 
-    private UploadTask uploadTask;
-    private TextView iryo_name;
-    private TextView alert_level;
-    private TextView attention_info;
-    private TextView situation_info;
+    //private UploadTask uploadTask;
+    public UploadTaskSSL uploadTask; //SSL認証サーバとの接続用
+    public TextView iryo_name;
+    public TextView alert_level;
+    public TextView attention_info;
+    public TextView situation_info;
 
-    private EditText editText;
-    private Size mPreviewSize;
-    private CaptureRequest.Builder mPreviewBuilder;
-    private CameraCaptureSession mPreviewSession;
-    private TextureView mTextureView;
+    private UploadTask.Listener listener;
     private Camera mCamera;
     private CameraPreview mPreview;
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
+    private TakePicture take_picture;
     private Bitmap theImage;
     private Bitmap bitmap2;
+
+    public Handler handler;
+
+    //仲介用phpのアドレス
+    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    //private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
+
     public int picture_count;
-    // Sound
-    private SoundPlayer soundPlayer;
+
+    // Sound設定
+    public SoundPlayer soundPlayer;
     // サーバからの結果保存用HashMap
     public HashMap<String,Integer> return_result = new HashMap<>();
-    //保存された結果の数
-    public int list_len;
     //情報提示フラグ
     public int info_flag=0; //提示する情報を変更するフラグ：0なら変更,1以上なら再認識
     //現在提示している情報
     public String now_info;
 
-    //仲介用phpのアドレス
-     String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
-     int nowLevel = 0;
-     Timer timer = new Timer();
+    //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_kotuzui kotuzui;
+
+    int nowLevel = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,6 +71,9 @@ public class MainActivity extends ActionMenuActivity{
         alert_level = findViewById(R.id.alert_level);
         situation_info = findViewById(R.id.situation_info);
         attention_info = findViewById(R.id.attention_info);
+
+        // メイン(UI)スレッドでHandlerのインスタンスを生成する
+        handler = new Handler();
 
         picture_count = 0;
 
@@ -121,10 +90,22 @@ public class MainActivity extends ActionMenuActivity{
         // Create an instance of Camera
         mCamera = getCameraInstance();
 
+        //写真をサーバに送る用
+        //uploadTask = new UploadTask();
+        uploadTask = new UploadTaskSSL();
+
+        //写真撮影用クラスのインスタンス作成
+        take_picture = new TakePicture(mCamera, mPicture);
+
+        listener = createListener();
+
         // カメラ映像のプレビュー作成(撮影に必要)
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mPreview);
+
+        //注意喚起情報変更用関数(骨髄穿刺)
+        kotuzui = new SetInfo_kotuzui(MainActivity.this);
 
         //開始時(nowLevel=0)で設定画面に遷移
         Intent intent = new Intent(getApplication(), Setting.class);
@@ -146,26 +127,28 @@ public class MainActivity extends ActionMenuActivity{
 
 
         // Add a listener to the Capture button
-        if(checkCameraHardware(this)==true){
+        if(checkCameraHardware(this)){
             Log.d("カメラの確認", "カメラの存在確認できました！" );
             final Button captureButton = findViewById(R.id.button_capture);
             captureButton.setOnClickListener(
                     new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            take_picture();
+                            take_picture.execute(picture_count);
+                            situation_info.setText("Now Recognition");
                             captureButton.setVisibility(View.INVISIBLE);
                         }
                     }
             );
-        }else if(checkCameraHardware(this)==false){
+        }else if(!checkCameraHardware(this)){
             Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
     }
 
-
-
+    public void setPictureCount(int num){
+        this.picture_count = num;
+    }
 
     protected void onActivityResult( int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
@@ -174,10 +157,11 @@ public class MainActivity extends ActionMenuActivity{
         }
     }
 
-
+    /*
     public void take_picture(){
         mCamera.takePicture(null, null, mPicture);
     }
+    */
 
 
     /** Check if this device has a camera */
@@ -202,6 +186,7 @@ public class MainActivity extends ActionMenuActivity{
         return c; // returns null if camera is unavailable
     }
 
+
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
 
         @Override
@@ -215,7 +200,8 @@ public class MainActivity extends ActionMenuActivity{
 
 
             //写真撮影後，サーバにアップロード
-            uploadTask = new UploadTask(MainActivity.this);
+            //uploadTask = new UploadTask();
+            uploadTask = new UploadTaskSSL();
             uploadTask.setListener(createListener());
             uploadTask.execute(new Param(url, bitmap2));
         }
@@ -232,7 +218,9 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("retake_check", "送信画像が10枚以下のため再撮影:" + String.valueOf(picture_count));
                     String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                     Log.d("retake_check", "現在時刻:" + timeStamp);
-                    take_picture();
+                    //写真撮影用クラスのインスタンス作成
+                    take_picture = new TakePicture(mCamera, mPicture);
+                    take_picture.execute(picture_count);
                 }else{
                     Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
                     String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -304,95 +292,25 @@ public class MainActivity extends ActionMenuActivity{
                         }
 
                     }
-
-                    take_picture();
+                    //写真撮影用クラスのインスタンス作成
+                    take_picture = new TakePicture(mCamera, mPicture);
+                    take_picture.execute(picture_count);
                 }
-
-
 
             }
         };
     }
 
     public void setInfo(String result){
-        //レベル1に設定した場合
+
+        //骨髄穿刺が結果として返された場合
+        if(result.contains("kotuzui")){
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            kotuzui.run(nowLevel,handler);
+        }
+
         if(nowLevel == 1){
-            //骨髄穿刺針の注意喚起情報表示
-            if(result.contains("kotuzui")){
-                Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
-                situation_info.setVisibility(View.INVISIBLE);
-                alert_level.setText(R.string.alertLevel_one);
-                alert_level.setTextColor(getResources().getColor(R.color.hud_yellow));
-                iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
-                soundPlayer.playLevel1Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                attention_info.setText(getResources().getString(R.string.mark_level1));
-
-                new Thread(new Runnable() {
-                    public void run() {
-                        Log.d("マルチスレッドに移行", "骨髄穿刺レベル2を表示するマルチスレッドに移行");
-                        try {
-                            Log.d("骨髄穿刺_レベル2待機", "骨髄穿刺レベル2を表示まで5秒待機");
-                            Thread.sleep(5000); // 5秒待つ
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        attention_info.post(new Runnable() {
-                            public void run() {
-                                Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
-                                soundPlayer.playLevel2Sound();
-                                alert_level.setText(R.string.alertLevel_two);
-                                alert_level.setTextColor(Color.rgb(255,165,0));
-                                attention_info.setTextColor(Color.rgb(255,165,0));
-                                attention_info.setText(getResources().getString(R.string.mark_level2));
-                            }
-                        });
-
-                        new Thread(new Runnable() {
-                            public void run() {
-                                Log.d("マルチスレッドに移行", "骨髄穿刺レベル3を表示するマルチスレッドに移行");
-                                try {
-                                    Log.d("骨髄穿刺_レベル3待機", "骨髄穿刺レベル3を表示まで5秒待機");
-                                    Thread.sleep(5000); // 5秒待つ
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                attention_info.post(new Runnable() {
-                                    public void run() {
-                                        Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
-                                        soundPlayer.playLevel3Sound();
-                                        alert_level.setText(R.string.alertLevel_three);
-                                        alert_level.setTextColor(getResources().getColor(R.color.hud_red));
-                                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                                        attention_info.setText(getResources().getString(R.string.mark_level3));
-                                    }
-                                });
-                            }
-                        }).start();
-
-                    }
-                }).start();
-
-
-                /*
-                try{
-                    Thread.sleep(5000);
-                }catch(InterruptedException e){
-                }
-                Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
-                soundPlayer.playLevel2Sound();
-                attention_info.setTextColor(Color.rgb(255,165,0));
-                attention_info.setText(getResources().getString(R.string.mark_level2));
-                try{
-                    Thread.sleep(5000);
-                }catch(InterruptedException e) {
-                }
-                Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.mark_level3));
-                */
-            }
 
 
             //腰椎穿刺針の注意喚起情報表示
@@ -522,6 +440,10 @@ public class MainActivity extends ActionMenuActivity{
 
     public int getPictureCount(){
         return picture_count;
+    }
+
+    public int getNowLevel(){
+        return nowLevel;
     }
 
 
