@@ -60,6 +60,8 @@ public class MainActivity extends ActionMenuActivity{
 
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
+    //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_youtui youtui;
 
     int nowLevel = 0;
 
@@ -309,9 +311,13 @@ public class MainActivity extends ActionMenuActivity{
             situation_info.setVisibility(View.INVISIBLE);
             kotuzui.run(nowLevel,handler);
         }
+        if(result.contains("youtui")){
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            youtui.run(nowLevel,handler);
+        }
 
         if(nowLevel == 1){
-
 
             //腰椎穿刺針の注意喚起情報表示
             if(result.contains("spinal_needle")){
@@ -335,7 +341,7 @@ public class MainActivity extends ActionMenuActivity{
             }
 
             //中心静脈カテーテル挿入の注意喚起情報表示
-            if(result.contains("central_venous_catheter") && result.contains("guide_wire")){
+            if(result.contains("catheter")){
                 situation_info.setVisibility(View.INVISIBLE);
                 soundPlayer.playLevel1Sound();
                 attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
@@ -350,7 +356,7 @@ public class MainActivity extends ActionMenuActivity{
             }
 
             //血液培養ボトルの注意喚起情報表示
-            if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
+            if(result.contains("blood")){
                 situation_info.setVisibility(View.INVISIBLE);
                 soundPlayer.playLevel3Sound();
                 attention_info.setTextColor(getResources().getColor(R.color.hud_red));

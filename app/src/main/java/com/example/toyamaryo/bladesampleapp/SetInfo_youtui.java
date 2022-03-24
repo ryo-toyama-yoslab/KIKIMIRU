@@ -4,13 +4,9 @@ import android.app.Activity;
 import android.graphics.Color;
 import android.os.Handler;
 import android.util.Log;
-import android.view.View;
 import android.widget.TextView;
 
-
-
-public class SetInfo_kotuzui {
-
+public class SetInfo_youtui {
     private Activity mActivity;
     // Sound設定
     private SoundPlayer soundPlayer;
@@ -18,7 +14,7 @@ public class SetInfo_kotuzui {
 
     public Handler handler;
 
-    public SetInfo_kotuzui(Activity activity){
+    public SetInfo_youtui(Activity activity){
         mActivity = activity;
         soundPlayer = new SoundPlayer(mActivity);
     }
@@ -26,11 +22,11 @@ public class SetInfo_kotuzui {
     public void run(int nowLevel, Handler handler){
         this.handler = handler;
 
-        Log.d("マルチスレッドに移行", "骨髄穿刺の注意喚起情報を提示するマルチスレッドに移行");
+        Log.d("マルチスレッドに移行", "腰椎穿刺の注意喚起情報を提示するマルチスレッドに移行");
         if(nowLevel == 1){
             setInfo(1);
-        }else if(nowLevel == 2){
-            setInfo(2);
+        }else if(nowLevel == 2){ //腰椎穿刺は設定したレベルが2以上ならアラートレベル3の情報のみを提示
+            setInfo(3);
         }else if(nowLevel == 3){
             setInfo(3);
         }
@@ -58,13 +54,13 @@ public class SetInfo_kotuzui {
 
     private void setInfo(int level){
         if(level == 1) {
-            Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
+            Log.d("腰椎穿刺_レベル1-1", "腰椎穿刺レベル1の1つ目の情報を提示");
 
             //スピーカー鳴音
-           soundPlayer.playLevel1Sound();
+            soundPlayer.playLevel1Sound();
 
             //医療行為名を骨髄穿刺に変更
-            ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_Kotuzuisennsi);
+            ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_YoutuiSensi);
 
             //アラートレベルが1であることを提示，テキストからを変更
             ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_one);
@@ -72,30 +68,30 @@ public class SetInfo_kotuzui {
 
             //アラートレベル1の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
-            ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level1));
+            ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level1_1));
 
-            nextInfoLevel = 2; //次に提示する注意喚起情報のレベルを設定
+            nextInfoLevel = 2; //次に提示する注意喚起情報のレベルを設定(アラートレベル1-2の情報に移るが仕様上2として設定)
             controlInfo();
 
         } else if (level == 2){
-            Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
+            Log.d("腰椎穿刺_レベル1-2", "腰椎穿刺レベル1の2つ目の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel2Sound();
+            soundPlayer.playLevel1Sound();
 
-            //アラートレベルが2であることを提示，テキストからを変更
-            ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_two);
-            ((TextView)mActivity.findViewById(R.id.alert_level)).setTextColor(Color.rgb(255,165,0));
+            //アラートレベルが1であることを提示，テキストからを変更
+            ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_one);
+            ((TextView)mActivity.findViewById(R.id.alert_level)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
 
-            //アラートレベル2の注意喚起情報を提示，テキストカラーを変更
-            ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(Color.rgb(255,165,0));
-            ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level2));
+            //アラートレベル1の注意喚起情報を提示，テキストカラーを変更
+            ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
+            ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level1_2));
 
             nextInfoLevel = 3; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
 
         }else if (level == 3){
-            Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
+            Log.d("腰椎穿刺_レベル3", "腰椎穿刺レベル3の情報を提示");
 
             //スピーカー鳴音
             soundPlayer.playLevel3Sound();
@@ -106,8 +102,7 @@ public class SetInfo_kotuzui {
 
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
-            ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level3));
+            ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level3));
         }
     }
-
 }
