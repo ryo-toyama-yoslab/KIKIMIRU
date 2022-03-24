@@ -62,6 +62,10 @@ public class MainActivity extends ActionMenuActivity{
     SetInfo_kotuzui kotuzui;
     //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_youtui youtui;
+    //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_catheter catheter;
+    //血液培養の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_blood blood;
 
     int nowLevel = 0;
 
@@ -294,7 +298,7 @@ public class MainActivity extends ActionMenuActivity{
                         }
 
                     }
-                    //写真撮影用クラスのインスタンス作成
+                    //写真撮影用クラスのインスタンス作成(撮影には毎回作り直す必要有り)
                     take_picture = new TakePicture(mCamera, mPicture);
                     take_picture.execute(picture_count);
                 }
@@ -311,137 +315,28 @@ public class MainActivity extends ActionMenuActivity{
             situation_info.setVisibility(View.INVISIBLE);
             kotuzui.run(nowLevel,handler);
         }
+
+        //腰椎穿刺が結果として返された場合
         if(result.contains("youtui")){
             //Now Recognition表示を不可視
             situation_info.setVisibility(View.INVISIBLE);
             youtui.run(nowLevel,handler);
         }
 
-        if(nowLevel == 1){
-
-            //腰椎穿刺針の注意喚起情報表示
-            if(result.contains("spinal_needle")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel1Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                attention_info.setText(getResources().getString(R.string.spinal_level1_1));
-                try{
-                    Thread.sleep(5000);
-                }catch(InterruptedException e) {
-                }
-                soundPlayer.playLevel1Sound();
-                attention_info.setText(getResources().getString(R.string.spinal_level1_2));
-                try{
-                    Thread.sleep(5000);
-                }catch(InterruptedException e) {
-                }
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.spinal_level3));
-            }
-
-            //中心静脈カテーテル挿入の注意喚起情報表示
-            if(result.contains("catheter")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel1Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                attention_info.setText(getResources().getString(R.string.central_catheter_in_level1));
-                try{
-                    Thread.sleep(50000);
-                }catch(InterruptedException e) {
-                }
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.central_catheter_in_level3));
-            }
-
-            //血液培養ボトルの注意喚起情報表示
-            if(result.contains("blood")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.blood_cl_bottle_level3));
-            }
+        //中心静脈カテーテル挿入が結果として返された場合
+        if(result.contains("catheter")){
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            catheter.run(nowLevel,handler);
         }
 
-        //レベル2に設定した場合
-        else if(nowLevel == 2){
-            //骨髄穿刺針の注意喚起情報表示
-            if(result.contains("dog")){
-                situation_info.setVisibility(View.INVISIBLE);
-                alert_level.setText(R.string.alertLevel_two);
-                alert_level.setTextColor(Color.rgb(255,165,0));
-                iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
-                soundPlayer.playLevel2Sound();
-                attention_info.setTextColor(Color.rgb(255,165,0));//(getResources().getColor(R.color.hud_blue));
-                attention_info.setText(getResources().getString(R.string.mark_level2));
-                        /*try{
-                            Thread.sleep(5000);
-                        }catch(InterruptedException e) {
-                        }
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.mark_level3));*/
-            }
-            //腰椎穿刺針の注意喚起情報表示
-            if(result.contains("spinal_needle")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.spinal_level3));
-            }
-            //中心静脈カテーテル挿入の注意喚起情報表示
-            if(result.contains("central_venous_catheter") && result.contains("guide_wire")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.central_catheter_in_level3));
-            }
-            //血液培養ボトルの注意喚起情報表示
-            if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.blood_cl_bottle_level3));
-            }
+        //血液培養ボトルが結果として返された場合
+        if(result.contains("blood")){
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            blood.run(nowLevel,handler);
         }
 
-        //レベル3に設定した場合
-        else if(nowLevel == 3){
-            //骨髄穿刺針の注意喚起情報表示
-            if(result.contains("dog")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.mark_level3));
-            }
-            //腰椎穿刺針の注意喚起情報表示
-            if(result.contains("spinal_needle")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.spinal_level3));
-            }
-            //中心静脈カテーテル挿入の注意喚起情報表示
-            if(result.contains("central_venous_catheter") && result.contains("guide_wire")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.central_catheter_in_level3));
-            }
-            //血液培養ボトルの注意喚起情報表示
-            if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
-                situation_info.setVisibility(View.INVISIBLE);
-                soundPlayer.playLevel3Sound();
-                attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                attention_info.setText(getResources().getString(R.string.blood_cl_bottle_level3));
-            }
-        }else{
-            soundPlayer.playLevel2Sound();
-            attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-            attention_info.setText("アラートレベルを設定してください");
-        }
     }
 
     public int getPictureCount(){
