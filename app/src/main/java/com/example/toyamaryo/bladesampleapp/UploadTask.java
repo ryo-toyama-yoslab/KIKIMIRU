@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
@@ -38,15 +39,11 @@ import static org.apache.http.conn.ssl.SSLSocketFactory.SSL;
 public class UploadTask extends AsyncTask<Param, Void, String> {
 
     private Listener listener;
-    private Activity mActivity;
     private MainActivity mainActivity;
     private Bitmap decodedByte;
     private int picture_count;
 
-    public UploadTask(Activity activity){
-        mActivity = activity;
-        ((TextView)mActivity.findViewById(R.id.situation_info)).setText("Now Recognition");
-
+    public UploadTask(){
         mainActivity = new MainActivity();
     }
 
@@ -58,10 +55,9 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
         String img = "img=";
-        String result = null;
-        //Log.d("URL：",urlSt);
 
-        HttpsURLConnection httpConn = null;
+        //HttpsURLConnection httpConn = null;
+        HttpURLConnection httpConn;
         StringBuilder sb = new StringBuilder();
 
         picture_count = mainActivity.getPictureCount();
@@ -84,7 +80,8 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
             URL url = new URL(urlSt);
 
             // HttpURLConnection
-            httpConn = (HttpsURLConnection) url.openConnection();
+            //httpConn = (HttpsURLConnection) url.openConnection();
+            httpConn = (HttpURLConnection)url.openConnection();
 
             // request POST
             httpConn.setRequestMethod("POST");
@@ -106,7 +103,7 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
 
             //レスポンスのボディ受信を許可(許可しないならfalseに)
             httpConn.setDoInput(true);
-
+            /*
             try {
                 //証明書情報　全て空を返す
                 TrustManager[] tm = {new X509TrustManager() {
@@ -141,6 +138,7 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
             }catch(Exception e){
 
             }
+            */
 
             // 接続
             httpConn.connect();
@@ -172,9 +170,11 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
     } catch (IOException e) {
         e.printStackTrace();
     } finally {
+            /*
             if (httpConn != null) {
                 httpConn.disconnect();
             }
+            */
         }
 
     return sb.toString();
