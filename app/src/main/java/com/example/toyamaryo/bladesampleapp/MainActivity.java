@@ -112,6 +112,12 @@ public class MainActivity extends ActionMenuActivity{
 
         //注意喚起情報変更用関数(骨髄穿刺)
         kotuzui = new SetInfo_kotuzui(MainActivity.this);
+        //注意喚起情報変更用関数(腰椎穿刺)
+        youtui = new SetInfo_youtui(MainActivity.this);
+        //注意喚起情報変更用関数(中心静脈カテーテル挿入)
+        catheter = new SetInfo_catheter(MainActivity.this);
+        //注意喚起情報変更用関数(血液培養)
+        blood = new SetInfo_blood(MainActivity.this);
 
         //開始時(nowLevel=0)で設定画面に遷移
         Intent intent = new Intent(getApplication(), Setting.class);
@@ -341,10 +347,6 @@ public class MainActivity extends ActionMenuActivity{
 
     public int getPictureCount(){
         return picture_count;
-    }
-
-    public int getNowLevel(){
-        return nowLevel;
     }
 
 
