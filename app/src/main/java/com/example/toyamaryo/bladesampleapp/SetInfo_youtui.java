@@ -11,12 +11,14 @@ public class SetInfo_youtui {
     // Sound設定
     private SoundPlayer soundPlayer;
     private int nextInfoLevel;
+    private boolean exitThread;
 
     public Handler handler;
 
     public SetInfo_youtui(Activity activity){
         mActivity = activity;
         soundPlayer = new SoundPlayer(mActivity);
+        exitThread = false;
     }
 
     public void run(int nowLevel, Handler handler){
@@ -44,10 +46,14 @@ public class SetInfo_youtui {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        setInfo(nextInfoLevel);
+                        try {
+                            setInfo(nextInfoLevel);
+                        } catch (java.lang.NullPointerException e){
+                            Log.d("腰椎穿刺マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
+                            e.printStackTrace();
+                        }
                     }
                 });
-
             }
         }).start();
     }
@@ -103,6 +109,14 @@ public class SetInfo_youtui {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level3));
+            exitThread = true;
         }
     }
+
+    public void stopThread() {
+        Log.d("腰椎穿刺の情報提示中断", "再認識開始により情報提示を中断");
+        soundPlayer = null;
+        mActivity = null;
+    }
+
 }

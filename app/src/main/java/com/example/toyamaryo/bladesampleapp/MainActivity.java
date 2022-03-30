@@ -21,14 +21,19 @@ import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class MainActivity extends ActionMenuActivity{
 
-    //private UploadTask uploadTask;
-    public UploadTaskSSL uploadTask; //SSL認証サーバとの接続用
+    private UploadTask uploadTask;
+    //public UploadTaskSSL uploadTask; //SSL認証サーバとの接続用
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
@@ -44,8 +49,8 @@ public class MainActivity extends ActionMenuActivity{
     public Handler handler;
 
     //仲介用phpのアドレス
-    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
-    //private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    //private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
 
     public int picture_count;
 
@@ -97,8 +102,8 @@ public class MainActivity extends ActionMenuActivity{
         mCamera = getCameraInstance();
 
         //写真をサーバに送る用
-        //uploadTask = new UploadTask();
-        uploadTask = new UploadTaskSSL();
+        uploadTask = new UploadTask();
+        //uploadTask = new UploadTaskSSL();
 
         //写真撮影用クラスのインスタンス作成
         take_picture = new TakePicture(mCamera, mPicture);
@@ -212,8 +217,8 @@ public class MainActivity extends ActionMenuActivity{
 
 
             //写真撮影後，サーバにアップロード
-            //uploadTask = new UploadTask();
-            uploadTask = new UploadTaskSSL();
+            uploadTask = new UploadTask();
+            //uploadTask = new UploadTaskSSL(); //SSL接続用
             uploadTask.setListener(createListener());
             uploadTask.execute(new Param(url, bitmap2));
         }
@@ -238,15 +243,18 @@ public class MainActivity extends ActionMenuActivity{
                     String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                     Log.d("retake_check", "現在時刻:" + timeStamp);
                     picture_count = 0;
+
                     if(return_result.get(result) == null){
                         return_result.put(result,1);                         //初の認識結果なら１を追加
                     }else {
                         return_result.put(result, return_result.get(result) + 1);//既に追加されてる結果は＋1
                     }
 
+
                     Log.d("result", "認識結果:" + result);
                     Log.d("result", "認識結果数:" + return_result.size());
                     Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
 
                     if(return_result.size() == 1){         //１回目の認識結果が来た時の処理
                         if(result.contains("no_results")){
@@ -262,44 +270,69 @@ public class MainActivity extends ActionMenuActivity{
                     }
 
 
-
                     if(return_result.size() > 1){          //認識２回目以降の処理，提示する情報を選択
                         if(result.contains("no_results")){
                             Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
                         }else{
-                            for (String key : return_result.keySet()) {
+                            //認識結果を降順にソート
+                            List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
+                            Collections.sort(list, new Comparator<Entry<String, Integer>>() {
+                                //compareを使用して値を比較する
+                                public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2)
+                                {
+                                    //降順
+                                    return obj2.getValue().compareTo(obj1.getValue());
+                                }
+                            });
 
-                                if(!key.equals("no_results")){
-
-                                    if(return_result.get(key) > return_result.get(result)){
+                            for(Entry<String, Integer> entry : list) {
+                                if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
+                                    if (entry.getValue() > return_result.get(result)) {
                                         Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
                                         break;
-                                    }else if(return_result.get(key) < return_result.get(result)){ //HashMapの全要素から判断する必要があるためフラグ1(他の認識結果数が多い場合があるため)
-                                        info_flag = 0;
-                                    }else{
-                                        info_flag ++;
-                                    }
-
-                                    if(info_flag >= 1){ //認識結果が別の結果と同回数となったため再認識
-                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                        attention_info.setText(getResources().getString(R.string.alertLevel_default));
-                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                        attention_info.setText("再認識中");
-                                    }else{
-                                        //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
-                                        if(result.contains(now_info)){
+                                    } else if (entry.getValue() < return_result.get(result)) {
+                                        //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
+                                        if(result.contains(now_info)){ //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
                                             Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                                            info_flag = 0;
                                         }else{
                                             Log.d("情報変更", "新しい結果が適切な情報と判断");
                                             now_info = result;
                                             setInfo(result);
+                                            info_flag = 0;
                                         }
+                                    } else {
+                                        //新しい認識結果が現状最も多い別の結果と同回数となったため再認識
+                                        Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                        attention_info.setText(getResources().getString(R.string.alertLevel_default));
+                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                        attention_info.setText("再認識中");
+                                        if(now_info.equals("kotuzui")){
+                                            //情報提示用マルチスレッドを中断
+                                            kotuzui.stopThread();
+                                            //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            kotuzui = new SetInfo_kotuzui(MainActivity.this);
+                                        }else if(now_info.equals("youtui")){
+                                            //情報提示用マルチスレッドを中断
+                                            youtui.stopThread();
+                                            //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_youtui youtui;
+                                        }else if(now_info.equals("catheter")){
+                                            //情報提示用マルチスレッドを中断
+                                            catheter.stopThread();
+                                            //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_catheter catheter;
+                                        }else if(now_info.equals("blood")){
+                                            //情報提示用マルチスレッドを中断
 
+                                            //血液培養の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_blood blood;
+                                        }
                                     }
-
                                 }
-
                             }
+
 
                         }
 
@@ -342,7 +375,6 @@ public class MainActivity extends ActionMenuActivity{
             situation_info.setVisibility(View.INVISIBLE);
             blood.run(nowLevel,handler);
         }
-
     }
 
     public int getPictureCount(){

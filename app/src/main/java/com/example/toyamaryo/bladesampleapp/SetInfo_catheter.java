@@ -44,7 +44,12 @@ public class SetInfo_catheter {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        setInfo(nextInfoLevel);
+                        try {
+                            setInfo(nextInfoLevel);
+                        }catch (java.lang.NullPointerException e){
+                            Log.d("中心静脈カテーテル挿入マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
+                            e.printStackTrace();
+                        }
                     }
                 });
 
@@ -87,6 +92,12 @@ public class SetInfo_catheter {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level3));
         }
+    }
+
+    public void stopThread() {
+        Log.d("中心静脈カテーテル挿入の情報提示中断", "再認識開始により情報提示を中断");
+        soundPlayer = null;
+        mActivity = null;
     }
 
 }

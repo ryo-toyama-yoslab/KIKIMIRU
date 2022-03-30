@@ -15,7 +15,8 @@ public class SetInfo_kotuzui {
     // Sound設定
     private SoundPlayer soundPlayer;
     private int nextInfoLevel;
-
+    public Runnable r;
+    public boolean running = true;
     public Handler handler;
 
     public SetInfo_kotuzui(Activity activity){
@@ -25,7 +26,6 @@ public class SetInfo_kotuzui {
 
     public void run(int nowLevel, Handler handler){
         this.handler = handler;
-
         Log.d("マルチスレッドに移行", "骨髄穿刺の注意喚起情報を提示するマルチスレッドに移行");
         if(nowLevel == 1){
             setInfo(1);
@@ -37,21 +37,25 @@ public class SetInfo_kotuzui {
     }
 
     private void controlInfo(){
-        new Thread(new Runnable() {
+        new Thread(r = new Runnable() {
             public void run() {
                 try {
                     Log.d("注意喚起情報変更インターバル", "次の注意喚起情報提示まで5秒待機");
                     Thread.sleep(5000); // 5秒待機
+                    handler.post(r = new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                setInfo(nextInfoLevel);
+                            }catch (java.lang.NullPointerException e){
+                                Log.d("骨髄穿刺マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
+                                e.printStackTrace();
+                            }
+                        }
+                    });
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        setInfo(nextInfoLevel);
-                    }
-                });
-
             }
         }).start();
     }
@@ -92,6 +96,7 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level2));
 
             nextInfoLevel = 3; //次に提示する注意喚起情報のレベルを設定
+            running = true;
             controlInfo();
 
         }else if (level == 3){
@@ -107,7 +112,14 @@ public class SetInfo_kotuzui {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level3));
+            running = false;
         }
+    }
+
+    public void stopThread() {
+        Log.d("骨髄穿刺の情報提示中断", "再認識開始により情報提示を中断");
+        soundPlayer = null;
+        mActivity = null;
     }
 
 }
