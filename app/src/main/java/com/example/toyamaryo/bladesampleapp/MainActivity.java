@@ -1,5 +1,7 @@
 package com.example.toyamaryo.bladesampleapp;
 
+import android.app.Activity;
+import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -29,30 +31,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Observer;
 
-public class MainActivity extends ActionMenuActivity{
+public class MainActivity extends ActionMenuActivity implements AsyncTaskCallback{
 
+    private UploadTaskReady uploadTaskReady;
     private UploadTask uploadTask;
+    private StartRecognition startRecognition;
     //public UploadTaskSSL uploadTask; //SSL認証サーバとの接続用
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
     public TextView situation_info;
 
-    private UploadTask.Listener listener;
+    private StartRecognition.Listener listener;
     private Camera mCamera;
     private CameraPreview mPreview;
     private TakePicture take_picture;
     private Bitmap theImage;
     private Bitmap bitmap2;
+    private AsyncTaskCallback callback = this;
+
 
     public Handler handler;
 
     //仲介用phpのアドレス
     //private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    private String url_0 = "http://almond.sys.wakayama-u.ac.jp/~toyama/ready.php";
     private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    private String url_recognition = "http://almond.sys.wakayama-u.ac.jp/~toyama/start_recognition.php";
 
     public int picture_count;
+    public ArrayList <String> result_str = new ArrayList<>();
 
     // Sound設定
     public SoundPlayer soundPlayer;
@@ -72,10 +82,12 @@ public class MainActivity extends ActionMenuActivity{
     //血液培養の注意喚起情報を提示するクラスのインスタンス
     SetInfo_blood blood;
 
+
+
     int nowLevel = 0;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         iryo_name = findViewById(R.id.iryou_name);
@@ -102,13 +114,13 @@ public class MainActivity extends ActionMenuActivity{
         mCamera = getCameraInstance();
 
         //写真をサーバに送る用
-        uploadTask = new UploadTask();
+        uploadTask = new UploadTask(callback);
         //uploadTask = new UploadTaskSSL();
 
-        //写真撮影用クラスのインスタンス作成
-        take_picture = new TakePicture(mCamera, mPicture);
-
-        listener = createListener();
+        //サーバに一時保存されている画像(9枚以下の時)を削除
+        uploadTaskReady = new UploadTaskReady();
+        Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
+        uploadTaskReady.execute(new Param(url_0));
 
         // カメラ映像のプレビュー作成(撮影に必要)
         mPreview = new CameraPreview(this, mCamera);
@@ -123,6 +135,8 @@ public class MainActivity extends ActionMenuActivity{
         catheter = new SetInfo_catheter(MainActivity.this);
         //注意喚起情報変更用関数(血液培養)
         blood = new SetInfo_blood(MainActivity.this);
+
+
 
         //開始時(nowLevel=0)で設定画面に遷移
         Intent intent = new Intent(getApplication(), Setting.class);
@@ -151,9 +165,12 @@ public class MainActivity extends ActionMenuActivity{
                     new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
+                            //写真撮影用クラスのインスタンス作成
+                            take_picture = new TakePicture(mCamera, mPicture);
                             take_picture.execute(picture_count);
                             situation_info.setText("Now Recognition");
                             captureButton.setVisibility(View.INVISIBLE);
+
                         }
                     }
             );
@@ -161,6 +178,16 @@ public class MainActivity extends ActionMenuActivity{
             Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
+    }
+
+    @Override
+    public void onTaskFinished() {
+
+    }
+
+    @Override
+    public void onTaskCancelled() {
+        Log.d("onTaskCancelled", "画像送信が中断されました" );
     }
 
     public void setPictureCount(int num){
@@ -208,46 +235,71 @@ public class MainActivity extends ActionMenuActivity{
 
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
-            picture_count++;
-
+            picture_count ++;
             //Log.d("画像データ", data.toString());
             ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
             theImage = BitmapFactory.decodeStream(imageInput);
             bitmap2 = Bitmap.createScaledBitmap(theImage, 416, 416, false);
 
 
+
             //写真撮影後，サーバにアップロード
-            uploadTask = new UploadTask();
+            uploadTask = new UploadTask(callback);
             //uploadTask = new UploadTaskSSL(); //SSL接続用
-            uploadTask.setListener(createListener());
+            uploadTask.setListener(u_createListener());
             uploadTask.execute(new Param(url, bitmap2));
+
+            Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
+            Log.d("SystemCheck", "サーバへのアップロードを行いました");
+
         }
     };
 
 
-    //認識結果が返ってくる
-    private UploadTask.Listener createListener() {
+    //サーバに画像を送った結果が返ってくる，10枚以上で認識先のディレクトリパスがくる
+    private UploadTask.Listener u_createListener() {
         return new UploadTask.Listener() {
             @Override
-            public void onSuccess(String result) {
-
-                if(picture_count < 10){
-                    Log.d("retake_check", "送信画像が10枚以下のため再撮影:" + String.valueOf(picture_count));
-                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                    Log.d("retake_check", "現在時刻:" + timeStamp);
-                    //写真撮影用クラスのインスタンス作成
-                    take_picture = new TakePicture(mCamera, mPicture);
-                    take_picture.execute(picture_count);
-                }else{
-                    Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
-                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                    Log.d("retake_check", "現在時刻:" + timeStamp);
+            public void onSuccess(String path){
+                Log.d("SystemCheck", "サーバへの画像送信状況 : " + path);
+                if(!path.equals("null")){
+                    Log.d("SystemCheck", "-----------------------pathがnullではない------------------------------" + path);
                     picture_count = 0;
+                    result_str.add(path);
+
+                    Log.d("認識開始", "蓄積されているディレクトリで認識を開始します");
+                    Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
+                    startRecognition = new StartRecognition();
+                    startRecognition.setListener(s_createListener());
+                    startRecognition.execute(new Param(url_recognition, result_str.get(0)));
+                    result_str.remove(0);
+
+                }
+
+                //写真撮影用クラスのインスタンス作成
+                take_picture = new TakePicture(mCamera, mPicture);
+                take_picture.execute(picture_count);
+
+            }
+        };
+    }
+
+    private StartRecognition.Listener s_createListener() {
+        return new StartRecognition.Listener() {
+            @Override
+            public void onSuccess(String result){
+
+                if(!result.equals("null")){
+                    //Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
+                    Log.d("receive_result", "認識結果を受信したため，提示する情報を判定");
+
 
                     if(return_result.get(result) == null){
-                        return_result.put(result,1);                         //初の認識結果なら１を追加
+                        //初の認識結果なら１を追加
+                        return_result.put(result,1);
                     }else {
-                        return_result.put(result, return_result.get(result) + 1);//既に追加されてる結果は＋1
+                        //既に追加されてる結果は＋1
+                        return_result.put(result, return_result.get(result) + 1);
                     }
 
                     Log.d("result", "認識結果:" + result);
@@ -259,7 +311,7 @@ public class MainActivity extends ActionMenuActivity{
                         if(result.contains("no_results")){
                             Log.d("認識失敗", "認識失敗のため再度認識を行います");
                         }else{
-                            if(return_result.get(result) == 1){
+                            if(return_result.get(result) == 1) {
                                 //no_results以外の結果が初めて出た場合
                                 Log.d("情報提示1回目", "認識された結果の情報を提示します");
                                 now_info = result;
@@ -311,8 +363,9 @@ public class MainActivity extends ActionMenuActivity{
                                     } else {
                                         //新しい認識結果が現状最も多い結果と同回数
                                         Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                        attention_info.setText(getResources().getString(R.string.alertLevel_default));
+                                        iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                        alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                        alert_level.setText(getResources().getString(R.string.alertLevel_default));
                                         attention_info.setTextColor(getResources().getColor(R.color.hud_white));
                                         attention_info.setText("再認識中");
                                         if(now_info.equals("kotuzui")){
@@ -345,14 +398,17 @@ public class MainActivity extends ActionMenuActivity{
                         }
 
                     }
-                    //写真撮影用クラスのインスタンス作成(撮影には毎回作り直す必要有り)
-                    take_picture = new TakePicture(mCamera, mPicture);
-                    take_picture.execute(picture_count);
-                }
 
+                }
+                /*
+                //写真撮影用クラスのインスタンス作成
+                take_picture = new TakePicture(mCamera, mPicture);
+                take_picture.execute(picture_count);
+                */
             }
         };
     }
+
 
     public void setInfo(String result){
 
@@ -403,7 +459,7 @@ public class MainActivity extends ActionMenuActivity{
 
     @Override
     protected void onDestroy() {
-        uploadTask.setListener(null);
+        startRecognition.setListener(null);
         super.onDestroy();
     }
 }

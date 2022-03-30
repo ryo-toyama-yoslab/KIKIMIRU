@@ -26,7 +26,6 @@ public class TakePicture extends AsyncTask<Integer, Void, Integer> {
         mCamera.takePicture(null, null, mPicture);
 
         picture_num = picture_count[0] + 1;
-        //Log.d("サーバアップロード後のbitmap2", "bitmap2 : " + bitmap2);
         return picture_count[0] + 1;
     }
 

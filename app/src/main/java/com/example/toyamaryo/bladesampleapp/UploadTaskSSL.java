@@ -38,7 +38,7 @@ import static org.apache.http.conn.ssl.SSLSocketFactory.SSL;
 
 public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
-    private UploadTask.Listener listener;
+    private UploadTaskSSL.Listener listener;
     private MainActivity mainActivity;
     private Bitmap decodedByte;
     private int picture_count;
@@ -186,7 +186,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
         }
     }
 
-    void setListener(UploadTask.Listener listener) {
+    void setListener(UploadTaskSSL.Listener listener) {
         this.listener = listener;
     }
 

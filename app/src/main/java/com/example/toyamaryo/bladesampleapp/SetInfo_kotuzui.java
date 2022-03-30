@@ -15,7 +15,6 @@ public class SetInfo_kotuzui {
     // Sound設定
     private SoundPlayer soundPlayer;
     private int nextInfoLevel;
-    public Runnable r;
     public boolean running = true;
     public Handler handler;
 
@@ -37,12 +36,12 @@ public class SetInfo_kotuzui {
     }
 
     private void controlInfo(){
-        new Thread(r = new Runnable() {
+        new Thread(new Runnable() {
             public void run() {
                 try {
                     Log.d("注意喚起情報変更インターバル", "次の注意喚起情報提示まで5秒待機");
                     Thread.sleep(5000); // 5秒待機
-                    handler.post(r = new Runnable() {
+                    handler.post(new Runnable() {
                         @Override
                         public void run() {
                             try {
