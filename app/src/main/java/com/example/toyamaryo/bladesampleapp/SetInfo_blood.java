@@ -26,6 +26,7 @@ public class SetInfo_blood {
         setInfo();
     }
 
+    //現状では血液培養の情報が1つだけのためcontrolInfo()は未使用
     private void controlInfo(){
         new Thread(new Runnable() {
             public void run() {
@@ -38,7 +39,12 @@ public class SetInfo_blood {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        setInfo();
+                        try {
+                            setInfo();
+                        }catch (java.lang.NullPointerException e){
+                            Log.d("血液培養マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
+                            e.printStackTrace();
+                        }
                     }
                 });
 
@@ -62,6 +68,12 @@ public class SetInfo_blood {
         //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
         ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
         ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level3));
+    }
+
+    public void stopThread() {
+        Log.d("血液培養の情報提示中断", "再認識開始により情報提示を中断");
+        soundPlayer = null;
+        mActivity = null;
     }
 
 }
