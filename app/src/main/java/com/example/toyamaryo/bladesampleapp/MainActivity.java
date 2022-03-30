@@ -59,9 +59,9 @@ public class MainActivity extends ActionMenuActivity{
     // サーバからの結果保存用HashMap
     public HashMap<String,Integer> return_result = new HashMap<>();
     //情報提示フラグ
-    public int info_flag=0; //提示する情報を変更するフラグ：0なら変更,1以上なら再認識
+    public int info_flag=0; //提示する情報を変更するフラグ : 1で最初の情報提示，2以上で再認識
     //現在提示している情報
-    public String now_info;
+    public String now_info = null;
 
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
@@ -250,17 +250,18 @@ public class MainActivity extends ActionMenuActivity{
                         return_result.put(result, return_result.get(result) + 1);//既に追加されてる結果は＋1
                     }
 
-
                     Log.d("result", "認識結果:" + result);
                     Log.d("result", "認識結果数:" + return_result.size());
                     Log.d("return_result", "認識結果蓄積状況:" + return_result);
 
-
-                    if(return_result.size() == 1){         //１回目の認識結果が来た時の処理
+                    //1回目の認識結果が来た時の処理
+                    if(return_result.size() == 1){
                         if(result.contains("no_results")){
                             Log.d("認識失敗", "認識失敗のため再度認識を行います");
                         }else{
-                            if(return_result.get(result) == 1){ //no_results以外の結果が初めて出た場合
+                            if(return_result.get(result) == 1){
+                                //no_results以外の結果が初めて出た場合
+                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
                                 now_info = result;
                                 setInfo(result);
                             }else{ //システム開始から同じ認識結果が2回出た場合
@@ -269,10 +270,15 @@ public class MainActivity extends ActionMenuActivity{
                         }
                     }
 
-
-                    if(return_result.size() > 1){          //認識２回目以降の処理，提示する情報を選択
+                    //認識2回目以降の処理，提示する情報を選択
+                    if(return_result.size() > 1){
                         if(result.contains("no_results")){
                             Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
+                        }else if(return_result.size() == 2 && now_info == null){
+                            //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
+                            Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                            now_info = result;
+                            setInfo(result);
                         }else{
                             //認識結果を降順にソート
                             List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
@@ -292,17 +298,18 @@ public class MainActivity extends ActionMenuActivity{
                                         break;
                                     } else if (entry.getValue() < return_result.get(result)) {
                                         //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
-                                        if(result.contains(now_info)){ //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
+                                        if(result.contains(now_info)){
+                                            //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
                                             Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
-                                            info_flag = 0;
+                                            break;
                                         }else{
                                             Log.d("情報変更", "新しい結果が適切な情報と判断");
                                             now_info = result;
                                             setInfo(result);
-                                            info_flag = 0;
+                                            break;
                                         }
                                     } else {
-                                        //新しい認識結果が現状最も多い別の結果と同回数となったため再認識
+                                        //新しい認識結果が現状最も多い結果と同回数
                                         Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
                                         attention_info.setTextColor(getResources().getColor(R.color.hud_white));
                                         attention_info.setText(getResources().getString(R.string.alertLevel_default));
@@ -325,14 +332,15 @@ public class MainActivity extends ActionMenuActivity{
                                             SetInfo_catheter catheter;
                                         }else if(now_info.equals("blood")){
                                             //情報提示用マルチスレッドを中断
-
+                                            blood.stopThread();
                                             //血液培養の注意喚起情報を提示するクラスのインスタンス
                                             SetInfo_blood blood;
                                         }
                                     }
+                                }else{
+                                    Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
                                 }
                             }
-
 
                         }
 
