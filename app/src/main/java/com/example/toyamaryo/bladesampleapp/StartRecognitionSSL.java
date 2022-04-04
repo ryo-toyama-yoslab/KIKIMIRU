@@ -14,13 +14,13 @@ import java.nio.charset.StandardCharsets;
 
 import static android.content.ContentValues.TAG;
 
-public class StartRecognition extends AsyncTask<Param, Void, String> {
+public class StartRecognitionSSL extends AsyncTask<Param, Void, String> {
 
-    private StartRecognition.Listener listener;
+    private StartRecognitionSSL.Listener listener;
     private MainActivity mainActivity = new MainActivity();
 
 
-    public StartRecognition(){
+    public StartRecognitionSSL(){
     }
 
     // 非同期処理
@@ -30,8 +30,6 @@ public class StartRecognition extends AsyncTask<Param, Void, String> {
 
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
-
-        Log.d("SystemCheck", "----------10枚の画像で認識を開始します----------");
 
         //HttpsURLConnection httpConn = null;
         HttpURLConnection httpConn;
@@ -69,7 +67,6 @@ public class StartRecognition extends AsyncTask<Param, Void, String> {
             // 接続
             httpConn.connect();
 
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -82,14 +79,9 @@ public class StartRecognition extends AsyncTask<Param, Void, String> {
     protected void onPostExecute(String result) {
         //認識結果のラベル名をテキスト表示
         //super.onPostExecute(result);
-
-        if (listener != null) {
-            Log.d("SystemCheck", "サーバからの返ってきた認識結果をMainに返しますーーーーーーーーーーーーーーーーーーーーーーーーーーーーー");
-            listener.onSuccess(result);
-        }
     }
 
-    void setListener(StartRecognition.Listener listener) {
+    void setListener(StartRecognitionSSL.Listener listener) {
         this.listener = listener;
     }
 
@@ -97,4 +89,3 @@ public class StartRecognition extends AsyncTask<Param, Void, String> {
         void onSuccess(String result);
     }
 }
-

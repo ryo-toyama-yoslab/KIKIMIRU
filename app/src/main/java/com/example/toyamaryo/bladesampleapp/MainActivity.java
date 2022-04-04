@@ -1,7 +1,5 @@
 package com.example.toyamaryo.bladesampleapp;
 
-import android.app.Activity;
-import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,7 +14,6 @@ import com.vuzix.hud.actionmenu.ActionMenuActivity;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -27,25 +24,28 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Observer;
 
 public class MainActivity extends ActionMenuActivity{
+    //SSL認証サーバとの接続用
+    public UploadTaskSSL uploadTaskSSL;
+    private UploadTaskReadySSL uploadTaskReadySSL;
+    private StartRecognitionSSL startRecognitionSSL;
 
-    private UploadTaskReady uploadTaskReady;
+    //非SSL認証サーバとの接続用
     private UploadTask uploadTask;
+    private UploadTaskReady uploadTaskReady;
     private StartRecognition startRecognition;
-    //public UploadTaskSSL uploadTask; //SSL認証サーバとの接続用
+
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
     public TextView situation_info;
 
-    private StartRecognition.Listener listener;
+    private StartRecognitionSSL.Listener listener;
+    //private StartRecognition.Listener listener;
     private Camera mCamera;
     private CameraPreview mPreview;
     private TakePicture take_picture;
@@ -53,14 +53,17 @@ public class MainActivity extends ActionMenuActivity{
     private Bitmap bitmap2;
     private Button captureButton;
 
-
     public Handler handler;
 
-    //仲介用phpのアドレス
-    //private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
-    private String url_0 = "http://almond.sys.wakayama-u.ac.jp/~toyama/ready.php";
-    private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
-    private String url_recognition = "http://almond.sys.wakayama-u.ac.jp/~toyama/start_recognition.php";
+    //仲介用phpのアドレス(grapefruitサーバ用，SSL)
+    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
+    private String url_recognition = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/start_recognition.php";
+
+    //仲介用phpのアドレス(almondサーバ用)
+    //private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    //private String url_0 = "http://almond.sys.wakayama-u.ac.jp/~toyama/ready.php";
+    //private String url_recognition = "http://almond.sys.wakayama-u.ac.jp/~toyama/start_recognition.php";
 
     public int picture_count;
     public ArrayList <String> result_str = new ArrayList<>();
@@ -114,14 +117,17 @@ public class MainActivity extends ActionMenuActivity{
         // Create an instance of Camera
         mCamera = getCameraInstance();
 
-        //写真をサーバに送る用
-        uploadTask = new UploadTask();
-        //uploadTask = new UploadTaskSSL();
-
+        //SSL用
         //サーバに一時保存されている画像(9枚以下の時)を削除
-        uploadTaskReady = new UploadTaskReady();
+        uploadTaskReadySSL = new UploadTaskReadySSL();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
-        uploadTaskReady.execute(new Param(url_0));
+        uploadTaskReadySSL.execute(new Param(url_0));
+
+        //非SSL用
+        //uploadTaskReady = new UploadTaskReady();
+        //Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
+        //uploadTaskReady.execute(new Param(url_0));
+
 
         // カメラ映像のプレビュー作成(撮影に必要)
         mPreview = new CameraPreview(this, mCamera);
@@ -233,12 +239,15 @@ public class MainActivity extends ActionMenuActivity{
             bitmap2 = Bitmap.createScaledBitmap(theImage, 480, 480, false);
 
 
-
+            //SSL接続用
             //写真撮影後，サーバにアップロード
-            uploadTask = new UploadTask();
-            //uploadTask = new UploadTaskSSL(); //SSL接続用
-            uploadTask.setListener(u_createListener());
-            uploadTask.execute(new Param(url, bitmap2));
+            uploadTaskSSL = new UploadTaskSSL();
+            uploadTaskSSL.setListener(u_createListenerSSL());
+            uploadTaskSSL.execute(new Param(url, bitmap2));
+
+            //uploadTask = new UploadTask();
+            //uploadTask.setListener(u_createListener());
+            //uploadTask.execute(new Param(url, bitmap2));
 
             Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
             Log.d("SystemCheck", "サーバへのアップロードを行いました");
@@ -246,6 +255,170 @@ public class MainActivity extends ActionMenuActivity{
         }
     };
 
+
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
+    //サーバに画像を送信した結果を受信，認識結果が出力されていなければ常にnullが返ってくる
+    private UploadTaskSSL.Listener u_createListenerSSL() {
+        return new UploadTaskSSL.Listener() {
+            @Override
+            public void onSuccess(String result){
+                if(picture_count == 10){
+                    picture_count = 0;
+                }
+
+                if(result.equals("NowRunning")){
+                    Log.d("SystemCheck", "------------NowRunningが返ってきました----------------" + result);
+                }
+
+                if(!result.equals("null")){
+                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+
+                    if(return_result.get(result) == null){
+                        //初の認識結果なら１を追加
+                        return_result.put(result,1);
+                    }else {
+                        //既に追加されてる結果は＋1
+                        return_result.put(result, return_result.get(result) + 1);
+                    }
+
+                    Log.d("result", "認識結果:" + result);
+                    Log.d("result", "認識結果数:" + return_result.size());
+                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
+                    //1回目の認識結果が来た時の処理
+                    if(return_result.size() == 1){
+                        if(result.contains("no_results")){
+                            Log.d("認識失敗", "認識失敗のため再度認識を行います");
+                        }else{
+                            if(return_result.get(result) == 1) {
+                                //no_results以外の結果が初めて出た場合
+                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                                now_info = result;
+                                setInfo(result);
+                            }else{ //システム開始から同じ認識結果が2回出た場合
+                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                            }
+                        }
+                    }
+
+                    //認識2回目以降の処理，提示する情報を選択
+                    if(return_result.size() > 1){
+                        if(result.contains("no_results")){
+                            Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
+                        }else if(return_result.size() == 2 && now_info == null){
+                            //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
+                            Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                            now_info = result;
+                            setInfo(result);
+                        }else{
+                            //認識結果を降順にソート
+                            List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
+                            Collections.sort(list, new Comparator<Entry<String, Integer>>() {
+                                //compareを使用して値を比較する
+                                public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2)
+                                {
+                                    //降順
+                                    return obj2.getValue().compareTo(obj1.getValue());
+                                }
+                            });
+
+                            for(Entry<String, Integer> entry : list) {
+                                if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
+                                    if (entry.getValue() > return_result.get(result)) {
+                                        Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
+                                        break;
+                                    } else if (entry.getValue() < return_result.get(result)) {
+                                        //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
+                                        if(result.contains(now_info)){
+                                            //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
+                                            Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                                            break;
+                                        }else{
+                                            Log.d("情報変更", "新しい結果が適切な情報と判断");
+                                            now_info = result;
+                                            setInfo(result);
+                                            break;
+                                        }
+                                    } else {
+                                        //新しい認識結果が現状最も多い結果と同回数
+                                        Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                        iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                        alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                        alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                        attention_info.setText("再認識中");
+                                        if(now_info.equals("kotuzui")){
+                                            //情報提示用マルチスレッドを中断
+                                            kotuzui.stopThread();
+                                            //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            kotuzui = new SetInfo_kotuzui(MainActivity.this);
+                                        }else if(now_info.equals("youtui")){
+                                            //情報提示用マルチスレッドを中断
+                                            youtui.stopThread();
+                                            //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_youtui youtui;
+                                        }else if(now_info.equals("catheter")){
+                                            //情報提示用マルチスレッドを中断
+                                            catheter.stopThread();
+                                            //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_catheter catheter;
+                                        }else if(now_info.equals("blood")){
+                                            //情報提示用マルチスレッドを中断
+                                            blood.stopThread();
+                                            //血液培養の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_blood blood;
+                                        }
+                                        break;
+                                    }
+                                }else{
+                                    Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
+                                }
+                            }
+
+                        }
+
+                    }
+
+                    /*Log.d("認識開始", "蓄積されているディレクトリで認識を開始します");
+                    Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
+                    startRecognitionSSL = new StartRecognitionSSL();
+                    startRecognitionSSL.setListener(s_createListenerSSL());
+                    startRecognitionSSL.execute(new Param(url_recognition));
+                    result_str.remove(0);
+                    */
+
+                }
+
+                //写真撮影用クラスのインスタンス作成
+                take_picture = new TakePicture(mCamera, mPicture);
+                take_picture.execute(picture_count);
+
+            }
+        };
+    }
+
+    private StartRecognitionSSL.Listener s_createListenerSSL() {
+        return new StartRecognitionSSL.Listener() {
+            @Override
+            public void onSuccess(String result){
+
+                if(!result.equals("null")){
+                    //Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
+                    Log.d("receive_result", "認識結果を受信したため，提示する情報を判定");
+
+                }
+                /*
+                //写真撮影用クラスのインスタンス作成
+                take_picture = new TakePicture(mCamera, mPicture);
+                take_picture.execute(picture_count);
+                */
+            }
+        };
+    }
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTP接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
 
     //サーバに画像を送った結果が返ってくる，10枚以上で認識先のディレクトリパスがくる
     private UploadTask.Listener u_createListener() {
@@ -262,7 +435,7 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
                     startRecognition = new StartRecognition();
                     startRecognition.setListener(s_createListener());
-                    startRecognition.execute(new Param(url_recognition, result_str.get(0)));
+                    startRecognition.execute(new Param(url_recognition));
                     result_str.remove(0);
 
                 }
@@ -401,6 +574,8 @@ public class MainActivity extends ActionMenuActivity{
         };
     }
 
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTP接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
 
     public void setInfo(String result){
 
@@ -452,7 +627,7 @@ public class MainActivity extends ActionMenuActivity{
 
     @Override
     protected void onDestroy() {
-        startRecognition.setListener(null);
+        startRecognitionSSL.setListener(null);
         super.onDestroy();
     }
 }

@@ -1,26 +1,14 @@
 package com.example.toyamaryo.bladesampleapp;
 
-
-import android.app.Activity;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
-import android.util.Base64;
 import android.util.Log;
-import android.widget.TextView;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
@@ -30,67 +18,55 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.HttpsURLConnection;
 
 import static android.content.ContentValues.TAG;
-import static android.icu.lang.UCharacter.GraphemeClusterBreak.L;
-import static org.apache.http.conn.ssl.SSLSocketFactory.SSL;
 
-public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
+public class UploadTaskReadySSL extends AsyncTask<Param, Void, String> {
 
-    private UploadTaskSSL.Listener listener;
     private MainActivity mainActivity;
 
-    public UploadTaskSSL(){
+    public UploadTaskReadySSL(){
         mainActivity = new MainActivity();
     }
 
     // 非同期処理
     @Override
     protected String doInBackground(Param... params) {
+        Log.d("SystemCheck", "サーバへのアップロード中です");
         Param param = params[0];
 
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
-        String img = "img=";
 
-        HttpsURLConnection httpConn = null;
+        HttpsURLConnection httpsConn = null;
         StringBuilder sb = new StringBuilder();
 
-
+        Log.d("SystemCheck", "----------10枚の画像で認識を開始します----------");
 
         try{
-            //BitmapをBase64にエンコード
-            ByteArrayOutputStream jpg = new ByteArrayOutputStream();
-            param.bmp.compress(Bitmap.CompressFormat.JPEG, 100, jpg);
-            byte[] b = jpg.toByteArray();
-            String imageEncoded = Base64.encodeToString(b,Base64.DEFAULT);
-            img = img + imageEncoded.trim();
-
-
             // URL設定
             URL url = new URL(urlSt);
 
             // HttpURLConnection
-            httpConn = (HttpsURLConnection) url.openConnection();
+            httpsConn = (HttpsURLConnection) url.openConnection();
 
             // request POST
-            httpConn.setRequestMethod("POST");
+            httpsConn.setRequestMethod("POST");
 
             // no Redirects
-            httpConn.setInstanceFollowRedirects(false);
+            httpsConn.setInstanceFollowRedirects(false);
 
             // データを書き込む(書き込まない，GETの場合はfalseに)
-            httpConn.setDoOutput(true);
+            httpsConn.setDoOutput(true);
 
             // 時間制限
-            httpConn.setReadTimeout(10000000);
-            httpConn.setConnectTimeout(200000000);
+            httpsConn.setReadTimeout(10000000);
+            httpsConn.setConnectTimeout(200000000);
 
-            httpConn.setRequestProperty("Accept-Language", "jp");
+            httpsConn.setRequestProperty("Accept-Language", "jp");
 
             //レスポンスのボディ受信を許可(許可しないならfalseに)
-            httpConn.setDoInput(true);
+            httpsConn.setDoInput(true);
 
             try {
                 //証明書情報　全て空を返す
@@ -122,27 +98,22 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
 
                 //ここでsetSSLSocketFactoryを実行
-                httpConn.setSSLSocketFactory(sslcontext.getSocketFactory());
+                httpsConn.setSSLSocketFactory(sslcontext.getSocketFactory());
             }catch(Exception e){
 
             }
 
 
             // 接続
-            httpConn.connect();
+            httpsConn.connect();
 
 
             try(// POSTデータ送信処理
                 //Stringデータ送信パターン
 
-                OutputStream outStream = httpConn.getOutputStream()){
-                //送信データ確認用
-                //Log.d("画像Byteデータ",img);
-                outStream.write(img.getBytes(StandardCharsets.ISO_8859_1));
-                outStream.flush();
-                //Log.d("debug","flush");
+                OutputStream outStream = httpsConn.getOutputStream()){
 
-                InputStream is = httpConn.getInputStream();
+                InputStream is = httpsConn.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
                 String line = "";
                 while ((line = reader.readLine()) != null)
@@ -172,18 +143,8 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
     @Override
     protected void onPostExecute(String result) {
         //認識結果のラベル名をテキスト表示
-        super.onPostExecute(result);
-
-        if (listener != null) {
-            listener.onSuccess(result);
-        }
+        //super.onPostExecute(result);
+        Log.d("SystemCheck", "不要な画像データを削除しました");
     }
 
-    void setListener(UploadTaskSSL.Listener listener) {
-        this.listener = listener;
-    }
-
-    interface Listener {
-        void onSuccess(String result);
-    }
 }
