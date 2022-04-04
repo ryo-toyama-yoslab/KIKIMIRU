@@ -16,6 +16,7 @@ import com.vuzix.hud.actionmenu.ActionMenuActivity;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -33,7 +34,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Observer;
 
-public class MainActivity extends ActionMenuActivity implements AsyncTaskCallback{
+public class MainActivity extends ActionMenuActivity{
 
     private UploadTaskReady uploadTaskReady;
     private UploadTask uploadTask;
@@ -50,7 +51,7 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
     private TakePicture take_picture;
     private Bitmap theImage;
     private Bitmap bitmap2;
-    private AsyncTaskCallback callback = this;
+    private Button captureButton;
 
 
     public Handler handler;
@@ -114,7 +115,7 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
         mCamera = getCameraInstance();
 
         //写真をサーバに送る用
-        uploadTask = new UploadTask(callback);
+        uploadTask = new UploadTask();
         //uploadTask = new UploadTaskSSL();
 
         //サーバに一時保存されている画像(9枚以下の時)を削除
@@ -126,6 +127,8 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mPreview);
+
+        captureButton = findViewById(R.id.button_capture);
 
         //注意喚起情報変更用関数(骨髄穿刺)
         kotuzui = new SetInfo_kotuzui(MainActivity.this);
@@ -160,17 +163,15 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
         // Add a listener to the Capture button
         if(checkCameraHardware(this)){
             Log.d("カメラの確認", "カメラの存在確認できました！" );
-            final Button captureButton = findViewById(R.id.button_capture);
+
             captureButton.setOnClickListener(
                     new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            //写真撮影用クラスのインスタンス作成
                             take_picture = new TakePicture(mCamera, mPicture);
                             take_picture.execute(picture_count);
                             situation_info.setText("Now Recognition");
                             captureButton.setVisibility(View.INVISIBLE);
-
                         }
                     }
             );
@@ -178,16 +179,6 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
             Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
-    }
-
-    @Override
-    public void onTaskFinished() {
-
-    }
-
-    @Override
-    public void onTaskCancelled() {
-        Log.d("onTaskCancelled", "画像送信が中断されました" );
     }
 
     public void setPictureCount(int num){
@@ -239,12 +230,12 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
             //Log.d("画像データ", data.toString());
             ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
             theImage = BitmapFactory.decodeStream(imageInput);
-            bitmap2 = Bitmap.createScaledBitmap(theImage, 416, 416, false);
+            bitmap2 = Bitmap.createScaledBitmap(theImage, 480, 480, false);
 
 
 
             //写真撮影後，サーバにアップロード
-            uploadTask = new UploadTask(callback);
+            uploadTask = new UploadTask();
             //uploadTask = new UploadTaskSSL(); //SSL接続用
             uploadTask.setListener(u_createListener());
             uploadTask.execute(new Param(url, bitmap2));
@@ -389,9 +380,10 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
                                             //血液培養の注意喚起情報を提示するクラスのインスタンス
                                             SetInfo_blood blood;
                                         }
+                                        break;
                                     }
                                 }else{
-                                    Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
+                                    Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
                                 }
                             }
 
@@ -449,13 +441,14 @@ public class MainActivity extends ActionMenuActivity implements AsyncTaskCallbac
     @Override
     protected boolean onCreateActionMenu(Menu menu) {
         super.onCreateActionMenu(menu);
-        return true;
+        return  true;
     }
 
     @Override
     protected boolean alwaysShowActionMenu() {
         return false;
     }
+
 
     @Override
     protected void onDestroy() {

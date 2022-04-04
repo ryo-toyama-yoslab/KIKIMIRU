@@ -43,15 +43,11 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
     private Bitmap decodedByte;
     private int picture_count;
 
-    private AsyncTaskCallback callback = null;
+
 
     public UploadTask(){
     }
 
-    //コールバック登録用コンストラクタ
-    public UploadTask(AsyncTaskCallback callBack){
-        this.callback = callBack; //コールバック登録
-    }
 
     // 非同期処理
     @Override
@@ -155,7 +151,6 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
             Log.d("SystemCheck", "サーバからの画像送信状況をMainに返します");
             listener.onSuccess(result);
         }
-        callback.onTaskFinished(); //非同期処理が終了したらonTaskFinished()を呼ぶ
 
     }
 
@@ -167,8 +162,5 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
         void onSuccess(String result);
     }
 
-    protected void onCancelled() {
-        callback.onTaskCancelled(); //非同期処理がキャンセルされたらonTaskCancelled()を呼ぶ
-    }
 
 }

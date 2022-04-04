@@ -1,5 +1,6 @@
 package com.example.toyamaryo.bladesampleapp;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -12,7 +13,7 @@ import android.widget.Switch;
 
 import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
-public class Setting extends ActionMenuActivity {
+public class Setting extends Activity {
 
     public Switch s1, s2, s3;
     public Button setting_btn;
