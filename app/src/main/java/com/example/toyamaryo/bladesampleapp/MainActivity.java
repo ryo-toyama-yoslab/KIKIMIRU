@@ -14,13 +14,14 @@ import com.vuzix.hud.actionmenu.ActionMenuActivity;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,24 +29,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
+import static android.content.ContentValues.TAG;
+
 public class MainActivity extends ActionMenuActivity{
     //SSL認証サーバとの接続用
     public UploadTaskSSL uploadTaskSSL;
     private UploadTaskReadySSL uploadTaskReadySSL;
-    private StartRecognitionSSL startRecognitionSSL;
 
     //非SSL認証サーバとの接続用
     private UploadTask uploadTask;
     private UploadTaskReady uploadTaskReady;
-    private StartRecognition startRecognition;
 
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
     public TextView situation_info;
+    public ProgressBar progressBar;
 
-    private StartRecognitionSSL.Listener listener;
-    //private StartRecognition.Listener listener;
     private Camera mCamera;
     private CameraPreview mPreview;
     private TakePicture take_picture;
@@ -55,27 +55,37 @@ public class MainActivity extends ActionMenuActivity{
 
     public Handler handler;
 
+    public SurfaceHolder mHolder;
+
+    //アプリが最初に生成されたのかどうかを区別(1なら初生成段階)
+    public int createCount;
+
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
     private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
     private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
-    private String url_recognition = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/start_recognition.php";
 
-    //仲介用phpのアドレス(almondサーバ用)
-    //private String url = "http://almond.sys.wakayama-u.ac.jp/~toyama/sample.php";
-    //private String url_0 = "http://almond.sys.wakayama-u.ac.jp/~toyama/ready.php";
-    //private String url_recognition = "http://almond.sys.wakayama-u.ac.jp/~toyama/start_recognition.php";
+    //仲介用phpのアドレス
+    //private String url = "http://202.245.226.85/~toyama/sample.php";
+    //private String url_0 = "http://202.245.226.85/~toyama/ready.php";
 
+
+    //撮影した画像枚数(10枚ごとに更新)
     public int picture_count;
-    public ArrayList <String> result_str = new ArrayList<>();
+
+
+    private int nowLevel;
 
     // Sound設定
     public SoundPlayer soundPlayer;
+
+
     // サーバからの結果保存用HashMap
     public HashMap<String,Integer> return_result = new HashMap<>();
-    //情報提示フラグ
-    public int info_flag=0; //提示する情報を変更するフラグ : 1で最初の情報提示，2以上で再認識
+
+
     //現在提示している情報
     public String now_info = null;
+
 
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
@@ -88,23 +98,39 @@ public class MainActivity extends ActionMenuActivity{
 
 
 
-    int nowLevel = 0;
-
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d("LifeCycleCheck", "onCreate()が呼び出されました");
         setContentView(R.layout.activity_main);
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
         situation_info = findViewById(R.id.situation_info);
         attention_info = findViewById(R.id.attention_info);
+        progressBar = findViewById(R.id.progressBar);
+        createCount = 1;
 
         // メイン(UI)スレッドでHandlerのインスタンスを生成する
         handler = new Handler();
 
         picture_count = 0;
 
+        nowLevel = 0;
+
         soundPlayer = new SoundPlayer(this);
+
+        // Create an instance of Camera
+        mCamera = getCameraInstance();
+
+        // カメラ映像のプレビュー作成(撮影に必要)
+        mPreview = new CameraPreview(this, mCamera);
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        preview.addView(mPreview);
+
+
+        // mPreviewのSurfaceHolder取得用
+        mHolder = mPreview.returnHolder();
+
 
         if(nowLevel == 1){
             attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
@@ -114,8 +140,6 @@ public class MainActivity extends ActionMenuActivity{
             attention_info.setTextColor(getResources().getColor(R.color.hud_red));
         }
 
-        // Create an instance of Camera
-        mCamera = getCameraInstance();
 
         //SSL用
         //サーバに一時保存されている画像(9枚以下の時)を削除
@@ -129,12 +153,8 @@ public class MainActivity extends ActionMenuActivity{
         //uploadTaskReady.execute(new Param(url_0));
 
 
-        // カメラ映像のプレビュー作成(撮影に必要)
-        mPreview = new CameraPreview(this, mCamera);
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        preview.addView(mPreview);
-
         captureButton = findViewById(R.id.button_capture);
+
 
         //注意喚起情報変更用関数(骨髄穿刺)
         kotuzui = new SetInfo_kotuzui(MainActivity.this);
@@ -145,13 +165,6 @@ public class MainActivity extends ActionMenuActivity{
         //注意喚起情報変更用関数(血液培養)
         blood = new SetInfo_blood(MainActivity.this);
 
-
-
-        //開始時(nowLevel=0)で設定画面に遷移
-        Intent intent = new Intent(getApplication(), Setting.class);
-        intent.putExtra("nowLevel",nowLevel);
-        startActivityForResult(intent,1001);
-
         //設定画面に遷移
         Button setting_btn = findViewById(R.id.setting_button);
         setting_btn.setOnClickListener(new View.OnClickListener() {
@@ -160,9 +173,21 @@ public class MainActivity extends ActionMenuActivity{
                    Log.d("postLevel",Integer.toString(nowLevel));
                    Intent intent = new Intent(getApplication(), Setting.class);
                    intent.putExtra("nowLevel",nowLevel);
+                   Log.d("SystemCheck","startActivityを行う前です");
                    startActivityForResult(intent,1001);
+                   Log.d("SystemCheck","startActivityを行った後です");
                }
            }
+        );
+
+        Button end_btn = findViewById(R.id.end_button);
+        end_btn.setOnClickListener(new View.OnClickListener() {
+               @Override
+               public void onClick(View v) {
+                   moveTaskToBack(true);
+                   Log.d("EndButton","終了ボタンが押されました");
+               }
+            }
         );
 
 
@@ -176,7 +201,8 @@ public class MainActivity extends ActionMenuActivity{
                         public void onClick(View v) {
                             take_picture = new TakePicture(mCamera, mPicture);
                             take_picture.execute(picture_count);
-                            situation_info.setText("Now Recognition");
+                            //situation_info.setText("Now Recognition");
+                            progressBar.setVisibility(View.VISIBLE);
                             captureButton.setVisibility(View.INVISIBLE);
                         }
                     }
@@ -185,11 +211,24 @@ public class MainActivity extends ActionMenuActivity{
             Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
+        //開始時(nowLevel=0)で設定画面に遷移
+        Intent intent = new Intent(getApplication(), Setting.class);
+        intent.putExtra("nowLevel",nowLevel);
+        startActivityForResult(intent,1001);
     }
+
+    @Override
+    public void onPause(){
+        super.onPause();
+        Log.v("LifeCycle_MainActivity", "onPause");
+    }
+
 
     public void setPictureCount(int num){
         this.picture_count = num;
     }
+
+
 
     protected void onActivityResult( int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
@@ -197,12 +236,6 @@ public class MainActivity extends ActionMenuActivity{
             nowLevel = intent.getIntExtra("nowLevel",0);
         }
     }
-
-    /*
-    public void take_picture(){
-        mCamera.takePicture(null, null, mPicture);
-    }
-    */
 
 
     /** Check if this device has a camera */
@@ -216,14 +249,16 @@ public class MainActivity extends ActionMenuActivity{
         }
     }
 
+
     public static Camera getCameraInstance(){
         Camera c = null;
         try {
             c = Camera.open(); // attempt to get a Camera instance
         }
         catch (Exception e){
-            // Camera is not available (in use or does not exist)
+            e.printStackTrace();
         }
+
         return c; // returns null if camera is unavailable
     }
 
@@ -232,12 +267,12 @@ public class MainActivity extends ActionMenuActivity{
 
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
+            Log.d("SystemCheck", "mPictureに入りました");
             picture_count ++;
             //Log.d("画像データ", data.toString());
             ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
             theImage = BitmapFactory.decodeStream(imageInput);
             bitmap2 = Bitmap.createScaledBitmap(theImage, 480, 480, false);
-
 
             //SSL接続用
             //写真撮影後，サーバにアップロード
@@ -249,14 +284,13 @@ public class MainActivity extends ActionMenuActivity{
             //uploadTask.setListener(u_createListener());
             //uploadTask.execute(new Param(url, bitmap2));
 
-            Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
             Log.d("SystemCheck", "サーバへのアップロードを行いました");
-
         }
     };
 
 
     //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
 
     //サーバに画像を送信した結果を受信，認識結果が出力されていなければ常にnullが返ってくる
     private UploadTaskSSL.Listener u_createListenerSSL() {
@@ -380,14 +414,6 @@ public class MainActivity extends ActionMenuActivity{
 
                     }
 
-                    /*Log.d("認識開始", "蓄積されているディレクトリで認識を開始します");
-                    Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
-                    startRecognitionSSL = new StartRecognitionSSL();
-                    startRecognitionSSL.setListener(s_createListenerSSL());
-                    startRecognitionSSL.execute(new Param(url_recognition));
-                    result_str.remove(0);
-                    */
-
                 }
 
                 //写真撮影用クラスのインスタンス作成
@@ -398,65 +424,27 @@ public class MainActivity extends ActionMenuActivity{
         };
     }
 
-    private StartRecognitionSSL.Listener s_createListenerSSL() {
-        return new StartRecognitionSSL.Listener() {
-            @Override
-            public void onSuccess(String result){
 
-                if(!result.equals("null")){
-                    //Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
-                    Log.d("receive_result", "認識結果を受信したため，提示する情報を判定");
-
-                }
-                /*
-                //写真撮影用クラスのインスタンス作成
-                take_picture = new TakePicture(mCamera, mPicture);
-                take_picture.execute(picture_count);
-                */
-            }
-        };
-    }
     //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
 
     //――――――――――――――――――――――――――――――――――――――――――――――HTTP接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
 
     //サーバに画像を送った結果が返ってくる，10枚以上で認識先のディレクトリパスがくる
     private UploadTask.Listener u_createListener() {
         return new UploadTask.Listener() {
             @Override
-            public void onSuccess(String path){
-                Log.d("SystemCheck", "サーバへの画像送信状況 : " + path);
-                if(!path.equals("null")){
-                    Log.d("SystemCheck", "-----------------------pathがnullではない------------------------------" + path);
+            public void onSuccess(String result){
+                if(picture_count == 10){
                     picture_count = 0;
-                    result_str.add(path);
-
-                    Log.d("認識開始", "蓄積されているディレクトリで認識を開始します");
-                    Log.d("ディレクトリパス", "ディレクトリパスの蓄積状況" + result_str);
-                    startRecognition = new StartRecognition();
-                    startRecognition.setListener(s_createListener());
-                    startRecognition.execute(new Param(url_recognition));
-                    result_str.remove(0);
-
                 }
 
-                //写真撮影用クラスのインスタンス作成
-                take_picture = new TakePicture(mCamera, mPicture);
-                take_picture.execute(picture_count);
-
-            }
-        };
-    }
-
-    private StartRecognition.Listener s_createListener() {
-        return new StartRecognition.Listener() {
-            @Override
-            public void onSuccess(String result){
+                if(result.equals("NowRunning")){
+                    Log.d("SystemCheck", "------------NowRunningが返ってきました----------------" + result);
+                }
 
                 if(!result.equals("null")){
-                    //Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
-                    Log.d("receive_result", "認識結果を受信したため，提示する情報を判定");
-
+                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
 
                     if(return_result.get(result) == null){
                         //初の認識結果なら１を追加
@@ -565,14 +553,15 @@ public class MainActivity extends ActionMenuActivity{
                     }
 
                 }
-                /*
+
                 //写真撮影用クラスのインスタンス作成
                 take_picture = new TakePicture(mCamera, mPicture);
                 take_picture.execute(picture_count);
-                */
+
             }
         };
     }
+
 
     //――――――――――――――――――――――――――――――――――――――――――――――HTTP接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
 
@@ -581,13 +570,17 @@ public class MainActivity extends ActionMenuActivity{
 
         //骨髄穿刺が結果として返された場合
         if(result.contains("kotuzui")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
             //Now Recognition表示を不可視
-            situation_info.setVisibility(View.INVISIBLE);
+            //situation_info.setVisibility(View.INVISIBLE);
             kotuzui.run(nowLevel,handler);
         }
 
         //腰椎穿刺が結果として返された場合
         if(result.contains("youtui")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
             //Now Recognition表示を不可視
             situation_info.setVisibility(View.INVISIBLE);
             youtui.run(nowLevel,handler);
@@ -595,6 +588,8 @@ public class MainActivity extends ActionMenuActivity{
 
         //中心静脈カテーテル挿入が結果として返された場合
         if(result.contains("catheter")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
             //Now Recognition表示を不可視
             situation_info.setVisibility(View.INVISIBLE);
             catheter.run(nowLevel,handler);
@@ -602,6 +597,8 @@ public class MainActivity extends ActionMenuActivity{
 
         //血液培養ボトルが結果として返された場合
         if(result.contains("blood")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
             //Now Recognition表示を不可視
             situation_info.setVisibility(View.INVISIBLE);
             blood.run(nowLevel,handler);
@@ -611,7 +608,6 @@ public class MainActivity extends ActionMenuActivity{
     public int getPictureCount(){
         return picture_count;
     }
-
 
     @Override
     protected boolean onCreateActionMenu(Menu menu) {
@@ -627,7 +623,7 @@ public class MainActivity extends ActionMenuActivity{
 
     @Override
     protected void onDestroy() {
-        startRecognitionSSL.setListener(null);
         super.onDestroy();
+        Log.d("LifeCycleCheck", "End Application");
     }
 }

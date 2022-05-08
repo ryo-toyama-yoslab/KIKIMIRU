@@ -24,6 +24,7 @@ public class Setting extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
 
+        Log.d("設定画面を提示","アラートレベル設定画面を提示します");
         setting_btn = findViewById(R.id.setting_button);
         s1 = findViewById(R.id.alert_1_switch);
         s2 = findViewById(R.id.alert_2_switch);
@@ -37,7 +38,7 @@ public class Setting extends Activity {
         Intent intentMain = getIntent();
 
         //alertLevel = Integer.parseInt(intentMain.getStringExtra("nowLevel"));
-        Log.d("返ってきたアラートレベル",Integer.toString(intentMain.getIntExtra("nowLevel",0)));
+        Log.d("現在のアラートレベル",Integer.toString(intentMain.getIntExtra("nowLevel",0)));
         alertLevel = intentMain.getIntExtra("nowLevel",0);
         if(alertLevel == 1){
             s1.setChecked(true);
@@ -128,17 +129,19 @@ public class Setting extends Activity {
             }
         });
 
-        //メイン画面(MainActivityに戻るボタン)
+        //メイン画面(MainActivityに遷移するボタン)
         setting_btn.setOnClickListener(new View.OnClickListener() {
                @Override
                public void onClick(View v) {
                    Intent intent = new Intent();
                    intent.putExtra("nowLevel",alertLevel);
                    setResult(RESULT_OK, intent);
+                   Log.d("画面遷移","設定画面からメイン画面に遷移します．設定したレベルは：" + alertLevel);
                    finish();
                }
            }
         );
 
     }
+
 }

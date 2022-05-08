@@ -6,23 +6,19 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 import static android.content.ContentValues.TAG;
-import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
 
 /** A basic Camera preview class */
 public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
     private SurfaceHolder mHolder;
-    private Camera mCamera;
+    public Camera mCamera;
 
     public CameraPreview(Context context, Camera camera) {
         super(context);
+        Log.d("System Log", " : CameraPreviewが呼ばれました");
         mCamera = camera;
-
         // Install a SurfaceHolder.Callback so we get notified when the
         // underlying surface is created and destroyed.
         mHolder = getHolder();
@@ -36,18 +32,29 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         try {
             mCamera.setPreviewDisplay(holder);
             mCamera.startPreview();
-        } catch (IOException e) {
+        }catch (IOException e) {
             Log.d(TAG, "Error setting camera preview: " + e.getMessage());
         }
+
     }
 
     public void surfaceDestroyed(SurfaceHolder holder) {
-        // empty. Take care of releasing the Camera preview in your activity.
+        Log.d(TAG, "surfaceDestroyed");
+        try{
+            mCamera.release();
+            mHolder = null;
+        }catch(Exception e)
+        {
+            e.printStackTrace();
+        }
     }
 
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
         // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
+        Log.d("System Log", " : surfaceChangedが呼ばれました");
+        //プレビュースタート（Changedは最初にも1度は呼ばれる）
+        mCamera.startPreview();
 
         if (mHolder.getSurface() == null){
             // preview surface does not exist
@@ -73,4 +80,10 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             Log.d(TAG, "Error starting camera preview: " + e.getMessage());
         }
     }
+
+    public SurfaceHolder returnHolder(){
+        return mHolder;
+    }
+
+
 }

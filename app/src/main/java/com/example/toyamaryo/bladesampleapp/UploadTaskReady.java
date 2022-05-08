@@ -29,7 +29,6 @@ public class UploadTaskReady  extends AsyncTask<Param, Void, String> {
     // 非同期処理
     @Override
     protected String doInBackground(Param... params) {
-        Log.d("SystemCheck", "サーバへのアップロード中です");
         Param param = params[0];
 
         // 使用するサーバーのURLに合わせる

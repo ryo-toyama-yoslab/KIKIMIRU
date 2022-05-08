@@ -7,6 +7,7 @@
     <string name="post">post data</string>
     <string name="browser">browser</string>
     <string name="setting_button">設定</string>
+    <string name="end">終了</string>
     <string name="alertLevel_default">アラートレベル：</string>
     <string name="alertLevel_one">アラートレベル：1</string>
     <string name="alertLevel_two">アラートレベル：2</string>

@@ -22,10 +22,12 @@ public class TakePicture extends AsyncTask<Integer, Void, Integer> {
     // バックグランドで行う処理
     @Override
     protected Integer doInBackground(Integer... picture_count) {
-        Log.d("画像撮影バックグランド処理","画像撮影を開始");
-        mCamera.takePicture(null, null, mPicture);
+        // 複数スレッドで同時に処理されないように保護する。
+        Log.d("画像撮影バックグランド処理", "画像撮影を開始");
 
+        mCamera.takePicture(null, null, mPicture);
         picture_num = picture_count[0] + 1;
+
         return picture_count[0] + 1;
     }
 
@@ -35,4 +37,12 @@ public class TakePicture extends AsyncTask<Integer, Void, Integer> {
         Log.d("撮影完了，MainActivityに移行", "picture_count:" + picture_count);
         mActivity.setPictureCount(picture_count);
     }
+
+    /** cancel() がコールされると呼び出される。 */
+    @Override
+    protected void onCancelled() {
+        // 結果を表示 "タスク名 - cancel() が呼ばれました。"
+        Log.d("onCancelled()","TakePictureのバックグランド処理を終了");
+    }
+
 }

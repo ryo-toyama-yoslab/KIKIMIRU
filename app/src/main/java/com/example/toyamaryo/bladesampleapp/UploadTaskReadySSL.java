@@ -32,7 +32,6 @@ public class UploadTaskReadySSL extends AsyncTask<Param, Void, String> {
     // 非同期処理
     @Override
     protected String doInBackground(Param... params) {
-        Log.d("SystemCheck", "サーバへのアップロード中です");
         Param param = params[0];
 
         // 使用するサーバーのURLに合わせる
@@ -40,8 +39,6 @@ public class UploadTaskReadySSL extends AsyncTask<Param, Void, String> {
 
         HttpsURLConnection httpsConn = null;
         StringBuilder sb = new StringBuilder();
-
-        Log.d("SystemCheck", "----------10枚の画像で認識を開始します----------");
 
         try{
             // URL設定
