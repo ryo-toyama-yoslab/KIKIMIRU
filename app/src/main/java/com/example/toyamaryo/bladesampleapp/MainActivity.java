@@ -143,15 +143,18 @@ public class MainActivity extends ActionMenuActivity{
 
         //SSL用
         //サーバに一時保存されている画像(9枚以下の時)を削除
+
         uploadTaskReadySSL = new UploadTaskReadySSL();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReadySSL.execute(new Param(url_0));
 
-        //非SSL用
-        //uploadTaskReady = new UploadTaskReady();
-        //Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
-        //uploadTaskReady.execute(new Param(url_0));
 
+        //非SSL用
+        /*
+        uploadTaskReady = new UploadTaskReady();
+        Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
+        uploadTaskReady.execute(new Param(url_0));
+        */
 
         captureButton = findViewById(R.id.button_capture);
 
@@ -276,13 +279,16 @@ public class MainActivity extends ActionMenuActivity{
 
             //SSL接続用
             //写真撮影後，サーバにアップロード
+
             uploadTaskSSL = new UploadTaskSSL();
             uploadTaskSSL.setListener(u_createListenerSSL());
             uploadTaskSSL.execute(new Param(url, bitmap2));
 
-            //uploadTask = new UploadTask();
-            //uploadTask.setListener(u_createListener());
-            //uploadTask.execute(new Param(url, bitmap2));
+            /*
+            uploadTask = new UploadTask();
+            uploadTask.setListener(u_createListener());
+            uploadTask.execute(new Param(url, bitmap2));
+            */
 
             Log.d("SystemCheck", "サーバへのアップロードを行いました");
         }
