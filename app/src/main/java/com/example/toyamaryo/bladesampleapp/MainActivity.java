@@ -6,127 +6,167 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CaptureRequest;
-import android.media.Image;
-import android.net.Uri;
 import android.os.Bundle;
 
 import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.util.Base64;
+import android.os.Handler;
 import android.util.Log;
-import android.util.Size;
-import android.view.MenuItem;
 import android.view.Menu;
-import android.view.Surface;
-import android.view.TextureView;
+import android.view.SurfaceHolder;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.app.Activity;
-import android.widget.Toast;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.Timestamp;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Timer;
-
+import java.util.Map.Entry;
 
 import static android.content.ContentValues.TAG;
-import static java.lang.Thread.sleep;
-//import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
-//import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
 
 public class MainActivity extends ActionMenuActivity{
-    private MenuItem HelloMenuItem;
-    private MenuItem VuzixMenuItem;
-    private MenuItem BladeMenuItem;
-    private ImageView taked_picure;
-    private ImageView encoded_bitmap;
+    //SSL認証サーバとの接続用
+    public UploadTaskSSL uploadTaskSSL;
+    private UploadTaskReadySSL uploadTaskReadySSL;
 
+    //非SSL認証サーバとの接続用
     private UploadTask uploadTask;
-    private TextView iryo_name;
-    private TextView alert_level;
-    private TextView attention_info;
-    private TextView returnText;
-    // wordを入れる
-    private EditText editText;
-    private Size mPreviewSize;
-    private CaptureRequest.Builder mPreviewBuilder;
-    private CameraCaptureSession mPreviewSession;
-    private TextureView mTextureView;
+    private UploadTaskReady uploadTaskReady;
+
+    public TextView iryo_name;
+    public TextView alert_level;
+    public TextView attention_info;
+    public TextView situation_info;
+    public ProgressBar progressBar;
+
     private Camera mCamera;
     private CameraPreview mPreview;
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
+    private TakePicture take_picture;
     private Bitmap theImage;
     private Bitmap bitmap2;
-    public int picture_count;
-    // Sound
-    private SoundPlayer soundPlayer;
+    private Button captureButton;
 
-    //phpがPOSTで受け取ったwordを入れて作成するHTMLページ(適宜合わせてください)
-     String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
-     int nowLevel = 0;
-     List<String> result_list = new ArrayList();
-     Timer timer = new Timer();
+    public Handler handler;
+
+    public SurfaceHolder mHolder;
+
+    //アプリが最初に生成されたのかどうかを区別(1なら初生成段階)
+    public int createCount;
+
+    //仲介用phpのアドレス(grapefruitサーバ用，SSL)
+    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
+
+    //仲介用phpのアドレス
+    //private String url = "http://202.245.226.85/~toyama/sample.php";
+    //private String url_0 = "http://202.245.226.85/~toyama/ready.php";
+
+
+    //撮影した画像枚数(10枚ごとに更新)
+    public int picture_count;
+
+
+    private int nowLevel;
+
+    // Sound設定
+    public SoundPlayer soundPlayer;
+
+
+    // サーバからの結果保存用HashMap
+    public HashMap<String,Integer> return_result = new HashMap<>();
+
+
+    //現在提示している情報
+    public String now_info = null;
+
+
+    //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_kotuzui kotuzui;
+    //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_youtui youtui;
+    //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_catheter catheter;
+    //血液培養の注意喚起情報を提示するクラスのインスタンス
+    SetInfo_blood blood;
+
+
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d("LifeCycleCheck", "onCreate()が呼び出されました");
         setContentView(R.layout.activity_main);
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
-        taked_picure = findViewById(R.id.taked_picture);
-        returnText = findViewById(R.id.return_text);
+        situation_info = findViewById(R.id.situation_info);
         attention_info = findViewById(R.id.attention_info);
+        progressBar = findViewById(R.id.progressBar);
+        createCount = 1;
+
+        // メイン(UI)スレッドでHandlerのインスタンスを生成する
+        handler = new Handler();
 
         picture_count = 0;
 
+        nowLevel = 0;
+
         soundPlayer = new SoundPlayer(this);
+
+        // Create an instance of Camera
+        mCamera = getCameraInstance();
+
+        // カメラ映像のプレビュー作成(撮影に必要)
+        mPreview = new CameraPreview(this, mCamera);
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        preview.addView(mPreview);
+
+
+        // mPreviewのSurfaceHolder取得用
+        mHolder = mPreview.returnHolder();
 
 
         if(nowLevel == 1){
             attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
         }else if(nowLevel == 2){
-            attention_info = findViewById(R.id.attention_info);
-            attention_info.setTextColor(getResources().getColor(R.color.hud_blue));
+            attention_info.setTextColor(Color.argb(20,255,69,0));
         }else if(nowLevel == 3){
-            attention_info = findViewById(R.id.attention_info);
             attention_info.setTextColor(getResources().getColor(R.color.hud_red));
         }
 
-        // Create an instance of Camera
-        mCamera = getCameraInstance();
 
-        // Create our Preview view and set it as the content of our activity.
-        mPreview = new CameraPreview(this, mCamera);
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        preview.addView(mPreview);
+        //SSL用
+        //サーバに一時保存されている画像(9枚以下の時)を削除
 
-        //開始時(nowLevel=0)で設定画面に遷移
-        Intent intent = new Intent(getApplication(), Setting.class);
-        intent.putExtra("nowLevel",nowLevel);
-        startActivityForResult(intent,1001);
+        uploadTaskReadySSL = new UploadTaskReadySSL();
+        Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
+        uploadTaskReadySSL.execute(new Param(url_0));
+
+
+        //非SSL用
+        /*
+        uploadTaskReady = new UploadTaskReady();
+        Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
+        uploadTaskReady.execute(new Param(url_0));
+        */
+
+        captureButton = findViewById(R.id.button_capture);
+
+
+        //注意喚起情報変更用関数(骨髄穿刺)
+        kotuzui = new SetInfo_kotuzui(MainActivity.this);
+        //注意喚起情報変更用関数(腰椎穿刺)
+        youtui = new SetInfo_youtui(MainActivity.this);
+        //注意喚起情報変更用関数(中心静脈カテーテル挿入)
+        catheter = new SetInfo_catheter(MainActivity.this);
+        //注意喚起情報変更用関数(血液培養)
+        blood = new SetInfo_blood(MainActivity.this);
 
         //設定画面に遷移
         Button setting_btn = findViewById(R.id.setting_button);
@@ -136,71 +176,70 @@ public class MainActivity extends ActionMenuActivity{
                    Log.d("postLevel",Integer.toString(nowLevel));
                    Intent intent = new Intent(getApplication(), Setting.class);
                    intent.putExtra("nowLevel",nowLevel);
+                   Log.d("SystemCheck","startActivityを行う前です");
                    startActivityForResult(intent,1001);
+                   Log.d("SystemCheck","startActivityを行った後です");
                }
            }
         );
 
-        // 変更テキスト送信ボタンの割り当て
-        Button post_btn = findViewById(R.id.post_text);
-        post_btn.setOnClickListener(new View.OnClickListener() {
-                      @Override
-                      public void onClick(View v) {
-                          if(url.length() != 0){
-                              // ボタンをタップして非同期処理を開始
-                              uploadTask = new UploadTask(MainActivity.this);
-                              // Listenerを設定
-                              uploadTask.setListener(createListener());
-                              uploadTask.execute(new Param(url, bitmap2));
-                          }
-                      }
-                  }
+        Button end_btn = findViewById(R.id.end_button);
+        end_btn.setOnClickListener(new View.OnClickListener() {
+               @Override
+               public void onClick(View v) {
+                   moveTaskToBack(true);
+                   Log.d("EndButton","終了ボタンが押されました");
+               }
+            }
         );
 
-        // ボタン割り当て
-        Button btn = findViewById(R.id.button);
-        btn.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        // get an image from the camera
-                        //mCamera.takePicture(null, null, mPicture);
-                    }
-                }
-        );
 
         // Add a listener to the Capture button
-        if(checkCameraHardware(this)==true) {
+        if(checkCameraHardware(this)){
             Log.d("カメラの確認", "カメラの存在確認できました！" );
-            final Button captureButton = findViewById(R.id.button_capture);
+
             captureButton.setOnClickListener(
                     new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            // get an image from the camera
-                            //mCamera.takePicture(null, null, mPicture);
-                            take_picture();
+                            take_picture = new TakePicture(mCamera, mPicture);
+                            take_picture.execute(picture_count);
+                            //situation_info.setText("Now Recognition");
+                            progressBar.setVisibility(View.VISIBLE);
                             captureButton.setVisibility(View.INVISIBLE);
                         }
                     }
             );
+        }else if(!checkCameraHardware(this)){
+            Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
+        //開始時(nowLevel=0)で設定画面に遷移
+        Intent intent = new Intent(getApplication(), Setting.class);
+        intent.putExtra("nowLevel",nowLevel);
+        startActivityForResult(intent,1001);
     }
+
+    @Override
+    public void onPause(){
+        super.onPause();
+        Log.v("LifeCycle_MainActivity", "onPause");
+    }
+
+
+    public void setPictureCount(int num){
+        this.picture_count = num;
+    }
+
 
 
     protected void onActivityResult( int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
         if(resultCode == RESULT_OK && requestCode == 1001 && intent != null) {
             nowLevel = intent.getIntExtra("nowLevel",0);
-            //Log.d("returnLevelは",Integer.toString(nowLevel));
         }
     }
 
-
-    public void take_picture(){
-        mCamera.takePicture(null, null, mPicture);
-    }
 
     /** Check if this device has a camera */
     private boolean checkCameraHardware(Context context) {
@@ -213,388 +252,384 @@ public class MainActivity extends ActionMenuActivity{
         }
     }
 
+
     public static Camera getCameraInstance(){
         Camera c = null;
         try {
             c = Camera.open(); // attempt to get a Camera instance
         }
         catch (Exception e){
-            // Camera is not available (in use or does not exist)
+            e.printStackTrace();
         }
+
         return c; // returns null if camera is unavailable
     }
+
 
     private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
 
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
+            Log.d("SystemCheck", "mPictureに入りました");
+            picture_count ++;
+            //Log.d("画像データ", data.toString());
+            ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
+            theImage = BitmapFactory.decodeStream(imageInput);
+            bitmap2 = Bitmap.createScaledBitmap(theImage, 480, 480, false);
 
-            picture_count++;
-            //File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
-            //if (pictureFile == null){
-            //    Log.d(TAG, "Error creating media file, check storage permissions");
-            //    return;
-            //}
+            //SSL接続用
+            //写真撮影後，サーバにアップロード
 
-            try {
-                //FileOutputStream fos = new FileOutputStream(pictureFile);
-                //Log.d("画像データ", data.toString());
-                ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
+            uploadTaskSSL = new UploadTaskSSL();
+            uploadTaskSSL.setListener(u_createListenerSSL());
+            uploadTaskSSL.execute(new Param(url, bitmap2));
 
-                theImage = BitmapFactory.decodeStream(imageInput);
-                bitmap2 = Bitmap.createScaledBitmap(theImage, 416, 416, false);
+            /*
+            uploadTask = new UploadTask();
+            uploadTask.setListener(u_createListener());
+            uploadTask.execute(new Param(url, bitmap2));
+            */
 
-                //写真確認用
-                taked_picure.setImageBitmap(bitmap2);
-                returnText.setText("認識を開始する！");
-
-                //写真撮影後，すぐにサーバにアップロード
-                uploadTask = new UploadTask(MainActivity.this);
-                uploadTask.setListener(createListener());
-                uploadTask.execute(new Param(url, bitmap2));
-                //encoded_bitmap.setImageBitmap(theImage);
-
-                //fos.write(data);
-                //fos.close();
-
-            }catch (Exception e) {
-                Log.d(TAG, "File not found: " + e.getMessage());
-            }// catch (IOException e) {
-            //    Log.d(TAG, "Error accessing file: " + e.getMessage());
-            //}
+            Log.d("SystemCheck", "サーバへのアップロードを行いました");
         }
     };
 
-    /*画像をファイルに保存
 
-    private static Uri getOutputMediaFileUri(int type){
-        return Uri.fromFile(getOutputMediaFile(type));
-    }
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
 
 
-    private static File getOutputMediaFile(int type){
-        // To be safe, you should check that the SDCard is mounted
-        // using Environment.getExternalStorageState() before doing this.
-
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "MyCameraApp");
-        // This location works best if you want the created images to be shared
-        // between applications and persist after your app has been uninstalled.
-
-        // Create the storage directory if it does not exist
-        if (! mediaStorageDir.exists()){
-            if (! mediaStorageDir.mkdirs()){
-                Log.d("MyCameraApp", "failed to create directory");
-                return null;
-            }
-        }
-
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        //Log.d("タイムスタンプ：", timeStamp);
-        File mediaFile;
-        if (type == MEDIA_TYPE_IMAGE){
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "IMG_"+ timeStamp + ".jpg");
-        }else if(type == MEDIA_TYPE_VIDEO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "VID_"+ timeStamp + ".mp4");
-        }else{
-            return null;
-        }
-
-        return mediaFile;
-    }
-
-*/
-
-    //認識結果が返ってくる
-    private UploadTask.Listener createListener() {
-        return new UploadTask.Listener() {
+    //サーバに画像を送信した結果を受信，認識結果が出力されていなければ常にnullが返ってくる
+    private UploadTaskSSL.Listener u_createListenerSSL() {
+        return new UploadTaskSSL.Listener() {
             @Override
-            public void onSuccess(String result) {
-
-                if(picture_count < 10){
-                    //attention_info.setText(result);
-                    Log.d("retake_check", "送信画像が10枚以下のため再撮影:" + String.valueOf(picture_count));
-                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                    Log.d("retake_check", "現在時刻:" + timeStamp);
-                    take_picture();
-                }else{
-                    attention_info.setText(result);
-                    Log.d("retake_check", "送信画像が10枚のため再撮影終了" + String.valueOf(picture_count));
-                    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                    Log.d("retake_check", "現在時刻:" + timeStamp);
+            public void onSuccess(String result){
+                if(picture_count == 10){
                     picture_count = 0;
-                    take_picture();
                 }
 
-                Log.d("result", "認識結果:" + result);
-
-                //骨髄穿刺針の注意喚起情報表示
-                /*if(result.contains("kotuzui")) {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                    }
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                    attention_info.setText(getResources().getString(R.string.mark_level1));
-                    if (attention_info.getText().toString().equals(getResources().getString(R.string.mark_level1))) {//表示が終わってから5秒待機
-                        try {
-                            Log.d("今の注意喚起情報は", attention_info.getText().toString());
-                            Thread.sleep(5000);
-
-                        } catch (InterruptedException e) {
-                        }
-                    }
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_blue));
-                    attention_info.setText(getResources().getString(R.string.mark_level2));
-                    if (attention_info.getText().equals(getResources().getString(R.string.mark_level2))) {//表示が終わってから5秒待機
-                        try {
-                            Thread.sleep(5000);
-
-                        } catch (InterruptedException e) {
-                        }
-                    }
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                    attention_info.setText(getResources().getString(R.string.mark_level3));
-                }
-                */
-                //レベル1に設定した場合
-                if(nowLevel == 1){
-                    //骨髄穿刺針の注意喚起情報表示
-                    if(result.contains("kotuzui")){
-                        alert_level.setText(R.string.alertLevel_one);
-                        alert_level.setTextColor(getResources().getColor(R.color.hud_yellow));
-                        iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
-                        soundPlayer.playLevel1Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                        attention_info.setText(getResources().getString(R.string.mark_level1));
-                        /*
-                        try{
-                            Thread.sleep(5000);
-                        }catch(InterruptedException e) {
-                        }
-                        soundPlayer.playLevel2Sound();
-                        attention_info.setTextColor(Color.rgb(255,165,0));//(getResources().getColor(R.color.hud_blue));
-                        attention_info.setText(getResources().getString(R.string.mark_level2));
-                        try{
-                            Thread.sleep(5000);
-                        }catch(InterruptedException e) {
-                        }
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.mark_level3));
-                        */
-                    }
-                    //腰椎穿刺針の注意喚起情報表示
-                    if(result.contains("spinal_needle")){
-                        soundPlayer.playLevel1Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                        attention_info.setText(getResources().getString(R.string.spinal_level1_1));
-                        try{
-                            Thread.sleep(5000);
-                        }catch(InterruptedException e) {
-                        }
-                        soundPlayer.playLevel1Sound();
-                        attention_info.setText(getResources().getString(R.string.spinal_level1_2));
-                        try{
-                            Thread.sleep(5000);
-                        }catch(InterruptedException e) {
-                        }
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.spinal_level3));
-                    }
-                    //中心静脈カテーテル挿入の注意喚起情報表示
-                    if(result.contains("central_venous_catheter") && result.contains("guide_wire")){
-                        soundPlayer.playLevel1Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                        attention_info.setText(getResources().getString(R.string.central_catheter_in_level1));
-                        try{
-                            Thread.sleep(50000);
-                        }catch(InterruptedException e) {
-                        }
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.central_catheter_in_level3));
-                    }
-                    //血液培養ボトルの注意喚起情報表示
-                    if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.blood_cl_bottle_level3));
-                    }
+                if(result.equals("NowRunning")){
+                    Log.d("SystemCheck", "------------NowRunningが返ってきました----------------" + result);
                 }
 
-                //レベル2に設定した場合
-                else if(nowLevel == 2){
-                    //骨髄穿刺針の注意喚起情報表示
-                    if(result.contains("dog")){
-                        alert_level.setText(R.string.alertLevel_two);
-                        alert_level.setTextColor(Color.rgb(255,165,0));
-                        iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
-                        soundPlayer.playLevel2Sound();
-                        attention_info.setTextColor(Color.rgb(255,165,0));//(getResources().getColor(R.color.hud_blue));
-                        attention_info.setText(getResources().getString(R.string.mark_level2));
-                        /*try{
-                            Thread.sleep(5000);
-                        }catch(InterruptedException e) {
+                if(!result.equals("null")){
+                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+
+                    if(return_result.get(result) == null){
+                        //初の認識結果なら１を追加
+                        return_result.put(result,1);
+                    }else {
+                        //既に追加されてる結果は＋1
+                        return_result.put(result, return_result.get(result) + 1);
+                    }
+
+                    Log.d("result", "認識結果:" + result);
+                    Log.d("result", "認識結果数:" + return_result.size());
+                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
+                    //1回目の認識結果が来た時の処理
+                    if(return_result.size() == 1){
+                        if(result.contains("no_results")){
+                            Log.d("認識失敗", "認識失敗のため再度認識を行います");
+                        }else{
+                            if(return_result.get(result) == 1) {
+                                //no_results以外の結果が初めて出た場合
+                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                                now_info = result;
+                                setInfo(result);
+                            }else{ //システム開始から同じ認識結果が2回出た場合
+                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                            }
                         }
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.mark_level3));*/
                     }
-                    //腰椎穿刺針の注意喚起情報表示
-                    if(result.contains("spinal_needle")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.spinal_level3));
+
+                    //認識2回目以降の処理，提示する情報を選択
+                    if(return_result.size() > 1){
+                        if(result.contains("no_results")){
+                            Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
+                        }else if(return_result.size() == 2 && now_info == null){
+                            //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
+                            Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                            now_info = result;
+                            setInfo(result);
+                        }else{
+                            //認識結果を降順にソート
+                            List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
+                            Collections.sort(list, new Comparator<Entry<String, Integer>>() {
+                                //compareを使用して値を比較する
+                                public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2)
+                                {
+                                    //降順
+                                    return obj2.getValue().compareTo(obj1.getValue());
+                                }
+                            });
+
+                            for(Entry<String, Integer> entry : list) {
+                                if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
+                                    if (entry.getValue() > return_result.get(result)) {
+                                        Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
+                                        break;
+                                    } else if (entry.getValue() < return_result.get(result)) {
+                                        //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
+                                        if(result.contains(now_info)){
+                                            //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
+                                            Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                                            break;
+                                        }else{
+                                            Log.d("情報変更", "新しい結果が適切な情報と判断");
+                                            now_info = result;
+                                            setInfo(result);
+                                            break;
+                                        }
+                                    } else {
+                                        //新しい認識結果が現状最も多い結果と同回数
+                                        Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                        iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                        alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                        alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                        attention_info.setText("再認識中");
+                                        if(now_info.equals("kotuzui")){
+                                            //情報提示用マルチスレッドを中断
+                                            kotuzui.stopThread();
+                                            //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            kotuzui = new SetInfo_kotuzui(MainActivity.this);
+                                        }else if(now_info.equals("youtui")){
+                                            //情報提示用マルチスレッドを中断
+                                            youtui.stopThread();
+                                            //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_youtui youtui;
+                                        }else if(now_info.equals("catheter")){
+                                            //情報提示用マルチスレッドを中断
+                                            catheter.stopThread();
+                                            //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_catheter catheter;
+                                        }else if(now_info.equals("blood")){
+                                            //情報提示用マルチスレッドを中断
+                                            blood.stopThread();
+                                            //血液培養の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_blood blood;
+                                        }
+                                        break;
+                                    }
+                                }else{
+                                    Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
+                                }
+                            }
+
+                        }
+
                     }
-                    //中心静脈カテーテル挿入の注意喚起情報表示
-                    if(result.contains("central_venous_catheter") && result.contains("guide_wire")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.central_catheter_in_level3));
-                    }
-                    //血液培養ボトルの注意喚起情報表示
-                    if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.blood_cl_bottle_level3));
-                    }
+
                 }
 
-                //レベル3に設定した場合
-                else if(nowLevel == 3){
-                    alert_level.setText(R.string.alertLevel_three);
-                    alert_level.setTextColor(getResources().getColor(R.color.hud_red));
-                    //骨髄穿刺針の注意喚起情報表示
-                    if(result.contains("dog")){
-                        soundPlayer.playLevel3Sound();
-                        iryo_name.setText(R.string.iryo_name_Kotuzuisennsi);
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.mark_level3));
-                    }
-                    //腰椎穿刺針の注意喚起情報表示
-                    if(result.contains("spinal_needle")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.spinal_level3));
-                    }
-                    //中心静脈カテーテル挿入の注意喚起情報表示
-                    if(result.contains("central_venous_catheter") && result.contains("guide_wire")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.central_catheter_in_level3));
-                    }
-                    //血液培養ボトルの注意喚起情報表示
-                    //if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
-                    if(result.contains("blood_cl_bottle_orange") && result.contains("blood_cl_bottle_blue")){
-                        soundPlayer.playLevel3Sound();
-                        attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                        attention_info.setText(getResources().getString(R.string.blood_cl_bottle_level3));
-                    }
-                }else{
-                    soundPlayer.playLevel2Sound();
-                    soundPlayer.playLevel3Sound();
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                    attention_info.setText("アラートレベルを設定してください");
-                }
+                //写真撮影用クラスのインスタンス作成
+                take_picture = new TakePicture(mCamera, mPicture);
+                take_picture.execute(picture_count);
 
-
-                //take_picture();
             }
         };
+    }
+
+
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTP接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
+
+    //サーバに画像を送った結果が返ってくる，10枚以上で認識先のディレクトリパスがくる
+    private UploadTask.Listener u_createListener() {
+        return new UploadTask.Listener() {
+            @Override
+            public void onSuccess(String result){
+                if(picture_count == 10){
+                    picture_count = 0;
+                }
+
+                if(result.equals("NowRunning")){
+                    Log.d("SystemCheck", "------------NowRunningが返ってきました----------------" + result);
+                }
+
+                if(!result.equals("null")){
+                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+
+                    if(return_result.get(result) == null){
+                        //初の認識結果なら１を追加
+                        return_result.put(result,1);
+                    }else {
+                        //既に追加されてる結果は＋1
+                        return_result.put(result, return_result.get(result) + 1);
+                    }
+
+                    Log.d("result", "認識結果:" + result);
+                    Log.d("result", "認識結果数:" + return_result.size());
+                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
+                    //1回目の認識結果が来た時の処理
+                    if(return_result.size() == 1){
+                        if(result.contains("no_results")){
+                            Log.d("認識失敗", "認識失敗のため再度認識を行います");
+                        }else{
+                            if(return_result.get(result) == 1) {
+                                //no_results以外の結果が初めて出た場合
+                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                                now_info = result;
+                                setInfo(result);
+                            }else{ //システム開始から同じ認識結果が2回出た場合
+                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                            }
+                        }
+                    }
+
+                    //認識2回目以降の処理，提示する情報を選択
+                    if(return_result.size() > 1){
+                        if(result.contains("no_results")){
+                            Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
+                        }else if(return_result.size() == 2 && now_info == null){
+                            //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
+                            Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                            now_info = result;
+                            setInfo(result);
+                        }else{
+                            //認識結果を降順にソート
+                            List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
+                            Collections.sort(list, new Comparator<Entry<String, Integer>>() {
+                                //compareを使用して値を比較する
+                                public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2)
+                                {
+                                    //降順
+                                    return obj2.getValue().compareTo(obj1.getValue());
+                                }
+                            });
+
+                            for(Entry<String, Integer> entry : list) {
+                                if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
+                                    if (entry.getValue() > return_result.get(result)) {
+                                        Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
+                                        break;
+                                    } else if (entry.getValue() < return_result.get(result)) {
+                                        //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
+                                        if(result.contains(now_info)){
+                                            //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
+                                            Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                                            break;
+                                        }else{
+                                            Log.d("情報変更", "新しい結果が適切な情報と判断");
+                                            now_info = result;
+                                            setInfo(result);
+                                            break;
+                                        }
+                                    } else {
+                                        //新しい認識結果が現状最も多い結果と同回数
+                                        Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                        iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                        alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                        alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                        attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                        attention_info.setText("再認識中");
+                                        if(now_info.equals("kotuzui")){
+                                            //情報提示用マルチスレッドを中断
+                                            kotuzui.stopThread();
+                                            //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            kotuzui = new SetInfo_kotuzui(MainActivity.this);
+                                        }else if(now_info.equals("youtui")){
+                                            //情報提示用マルチスレッドを中断
+                                            youtui.stopThread();
+                                            //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_youtui youtui;
+                                        }else if(now_info.equals("catheter")){
+                                            //情報提示用マルチスレッドを中断
+                                            catheter.stopThread();
+                                            //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_catheter catheter;
+                                        }else if(now_info.equals("blood")){
+                                            //情報提示用マルチスレッドを中断
+                                            blood.stopThread();
+                                            //血液培養の注意喚起情報を提示するクラスのインスタンス
+                                            SetInfo_blood blood;
+                                        }
+                                        break;
+                                    }
+                                }else{
+                                    Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
+                                }
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                //写真撮影用クラスのインスタンス作成
+                take_picture = new TakePicture(mCamera, mPicture);
+                take_picture.execute(picture_count);
+
+            }
+        };
+    }
+
+
+    //――――――――――――――――――――――――――――――――――――――――――――――HTTP接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+
+
+    public void setInfo(String result){
+
+        //骨髄穿刺が結果として返された場合
+        if(result.contains("kotuzui")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
+            //Now Recognition表示を不可視
+            //situation_info.setVisibility(View.INVISIBLE);
+            kotuzui.run(nowLevel,handler);
+        }
+
+        //腰椎穿刺が結果として返された場合
+        if(result.contains("youtui")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            youtui.run(nowLevel,handler);
+        }
+
+        //中心静脈カテーテル挿入が結果として返された場合
+        if(result.contains("catheter")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            catheter.run(nowLevel,handler);
+        }
+
+        //血液培養ボトルが結果として返された場合
+        if(result.contains("blood")){
+            //ProgressBarを不可視
+            progressBar.setVisibility(View.INVISIBLE);
+            //Now Recognition表示を不可視
+            situation_info.setVisibility(View.INVISIBLE);
+            blood.run(nowLevel,handler);
+        }
     }
 
     public int getPictureCount(){
         return picture_count;
     }
 
-    public static void main(String[] args) {
-        File file = new File("/内部ストレージ//java/*.txt");
-
-        //deleteメソッドを使用してファイルを削除する
-        file.delete();
-    }
-
     @Override
     protected boolean onCreateActionMenu(Menu menu) {
         super.onCreateActionMenu(menu);
-
-        //getMenuInflater().inflate(R.menu.menu, menu);
-
-        //HelloMenuItem = menu.findItem(R.id.item1);
-        //VuzixMenuItem = menu.findItem(R.id.item2);
-        //BladeMenuItem = menu.findItem(R.id.item3);
-        //mainText = findViewById(R.id.mainTextView);
-
-        return true;
+        return  true;
     }
-
 
     @Override
     protected boolean alwaysShowActionMenu() {
         return false;
     }
-    /*
-        private void updateMenuItems() {
-            if (HelloMenuItem == null) {
-                return;
-            }
-
-            VuzixMenuItem.setEnabled(false);
-            BladeMenuItesetEnabled(false);
-        }
 
 
-    /*
-        //Action Menu Click events
-        //This events where register via the XML for the menu definitions.
-        public void showHello(MenuItem item){
-
-            showToast("Hello World!");
-            mainText.setText("Hello World!");
-            VuzixMenuItem.setEnabled(false);
-            BladeMenuItem.setEnabled(false);
-        }
-
-        public void showVuzix(MenuItem item){
-
-        }
-
-        public void showBlade(MenuItem item){
-            showToast("Blade");
-            mainText.setText("Blade");
-        }
-
-        private void showToast(final String text){
-
-            final Activity activity = this;
-
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(activity, text, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    */
     @Override
     protected void onDestroy() {
-        uploadTask.setListener(null);
         super.onDestroy();
+        Log.d("LifeCycleCheck", "End Application");
     }
-
-    /*
-    private UploadTask.Listener createListener() {
-        return new UploadTask.Listener() {
-            @Override
-            public void onSuccess(String result) {
-                textView.setText(result);
-            }
-        };
-    }
-    */
 }

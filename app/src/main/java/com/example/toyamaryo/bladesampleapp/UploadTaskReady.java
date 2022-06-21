@@ -1,17 +1,13 @@
 package com.example.toyamaryo.bladesampleapp;
 
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.util.Base64;
 import android.util.Log;
-import android.widget.TextView;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,64 +15,31 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.Security;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.HttpsURLConnection;
 
 import static android.content.ContentValues.TAG;
-import static android.icu.lang.UCharacter.GraphemeClusterBreak.L;
-import static org.apache.http.conn.ssl.SSLSocketFactory.SSL;
 
+public class UploadTaskReady  extends AsyncTask<Param, Void, String> {
 
-public class UploadTask extends AsyncTask<Param, Void, String> {
+    private MainActivity mainActivity;
 
-    private UploadTask.Listener listener;
-    private MainActivity mainActivity = new MainActivity();
-    private Bitmap decodedByte;
-    private int picture_count;
-
-
-
-    public UploadTask(){
+    public UploadTaskReady(){
+        mainActivity = new MainActivity();
     }
-
 
     // 非同期処理
     @Override
     protected String doInBackground(Param... params) {
-        Log.d("SystemCheck", "サーバへのアップロード中です");
         Param param = params[0];
 
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
-        String img = "img=";
 
         //HttpsURLConnection httpConn = null;
         HttpURLConnection httpConn;
         StringBuilder sb = new StringBuilder();
 
-        picture_count = mainActivity.getPictureCount();
 
         try{
-            //BitmapをBase64にエンコード
-            ByteArrayOutputStream jpg = new ByteArrayOutputStream();
-            param.bmp.compress(Bitmap.CompressFormat.JPEG, 100, jpg);
-            byte[] b = jpg.toByteArray();
-            String imageEncoded = Base64.encodeToString(b,Base64.DEFAULT);
-            img = img + imageEncoded.trim();
-
-            //確認用：Base64をBitmapにデコード
-            byte[] decodedString = Base64.decode(imageEncoded.trim(), Base64.DEFAULT);
-            decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
-
 
             // URL設定
             URL url = new URL(urlSt);
@@ -95,7 +58,7 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
             httpConn.setInstanceFollowRedirects(false);
 
             // データを書き込む(書き込まない，GETの場合はfalseに)
-            httpConn.setDoOutput(true);
+            httpConn.setDoOutput(false);
 
             // 時間制限
             httpConn.setReadTimeout(10000000);
@@ -115,10 +78,6 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
 
                 OutputStream outStream = httpConn.getOutputStream()){
                 //送信データ確認用
-                //Log.d("画像Byteデータ",img);
-                outStream.write(img.getBytes(StandardCharsets.ISO_8859_1));
-                outStream.flush();
-                //Log.d("debug","flush");
 
                 InputStream is = httpConn.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
@@ -145,22 +104,8 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
     protected void onPostExecute(String result) {
         //認識結果のラベル名をテキスト表示
         //super.onPostExecute(result);
-        Log.d("SystemCheck", "サーバへの画像送信状況 : " + result);
-
-        if (listener != null) {
-            Log.d("SystemCheck", "サーバからの画像送信状況をMainに返します");
-            listener.onSuccess(result);
-        }
+        Log.d("SystemCheck", "不要な画像データを削除しました");
 
     }
-
-    void setListener(Listener listener) {
-        this.listener = listener;
-    }
-
-    interface Listener {
-        void onSuccess(String result);
-    }
-
 
 }
