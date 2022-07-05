@@ -20,12 +20,12 @@
             android:layout_height="wrap_content"
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true"
-            android:layout_marginTop="23dp"
+            android:layout_marginTop="10dp"
             android:layout_weight="1"
             android:text="@string/setting_title"
             android:textAlignment="center"
             android:textColor="@color/hud_white"
-            android:textSize="18sp" />
+            android:textSize="20sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -41,18 +41,18 @@
                 android:text="@string/alert_one"
                 android:textAlignment="viewStart"
                 android:textColor="@color/hud_white"
-                android:textSize="16sp" />
+                android:textSize="20sp" />
 
             <Switch
                 android:id="@+id/alert_1_switch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_weight="1.5"
                 android:checked="false"
                 android:text="未選択"
                 android:textAlignment="viewEnd"
                 android:textColor="@color/hud_white"
-                android:textSize="16sp"
+                android:textSize="20sp"
                 tools:checked="false" />
 
         </LinearLayout>
@@ -71,19 +71,19 @@
                 android:text="@string/alert_two"
                 android:textAlignment="viewStart"
                 android:textColor="@color/hud_white"
-                android:textSize="16sp" />
+                android:textSize="20sp" />
 
             <Switch
                 android:id="@+id/alert_2_switch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_weight="1.5"
                 android:checked="false"
                 android:text="未選択"
                 android:textAlignment="textEnd"
                 android:textAllCaps="false"
                 android:textColor="@color/hud_white"
-                android:textSize="16sp" />
+                android:textSize="20sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -100,18 +100,18 @@
                 android:text="@string/alert_three"
                 android:textAlignment="viewStart"
                 android:textColor="@color/hud_white"
-                android:textSize="16sp" />
+                android:textSize="20sp" />
 
             <Switch
                 android:id="@+id/alert_3_switch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_weight="1.5"
                 android:checked="false"
                 android:text="未選択"
                 android:textAlignment="viewEnd"
                 android:textColor="@color/hud_white"
-                android:textSize="16sp" />
+                android:textSize="20sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -127,11 +127,12 @@
 
             <Button
                 android:id="@+id/setting_button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="20dp"
+                android:layout_height="60dp"
                 android:layout_weight="1"
                 android:text="設定"
-                android:textAlignment="center" />
+                android:textAlignment="center"
+                android:textSize="24sp" />
 
             <Space
                 android:layout_width="wrap_content"

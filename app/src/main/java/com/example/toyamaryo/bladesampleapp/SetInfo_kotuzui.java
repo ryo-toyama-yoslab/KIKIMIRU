@@ -7,6 +7,9 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 
 public class SetInfo_kotuzui {
@@ -17,6 +20,9 @@ public class SetInfo_kotuzui {
     private int nextInfoLevel;
     public boolean running = true;
     public Handler handler;
+
+    //取得する日時のフォーマットを指定
+    final DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 
     public SetInfo_kotuzui(Activity activity){
         mActivity = activity;
@@ -62,6 +68,11 @@ public class SetInfo_kotuzui {
     private void setInfo(int level){
         if(level == 1) {
             Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
+            //日時を指定したフォーマットで取得
+            /*
+            final Date date = new Date(System.currentTimeMillis());
+            Log.d("現在時刻", "CurrentTime : " + df.format(date));
+            */
 
             //スピーカー鳴音
            soundPlayer.playLevel1Sound();
@@ -82,6 +93,11 @@ public class SetInfo_kotuzui {
 
         } else if (level == 2){
             Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
+            //日時を指定したフォーマットで取得
+            /*
+            final Date date = new Date(System.currentTimeMillis());
+            Log.d("現在時刻", "CurrentTime : " + df.format(date));
+            */
 
             //スピーカー鳴音
             soundPlayer.playLevel2Sound();
@@ -100,6 +116,11 @@ public class SetInfo_kotuzui {
 
         }else if (level == 3){
             Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
+            //日時を指定したフォーマットで取得
+            /*
+            final Date date = new Date(System.currentTimeMillis());
+            Log.d("現在時刻", "CurrentTime : " + df.format(date));
+            */
 
             //スピーカー鳴音
             soundPlayer.playLevel3Sound();
@@ -117,6 +138,9 @@ public class SetInfo_kotuzui {
 
     public void stopThread() {
         Log.d("骨髄穿刺の情報提示中断", "再認識開始により情報提示を中断");
+        //日時を指定したフォーマットで取得
+        final Date date = new Date(System.currentTimeMillis());
+        Log.d("現在時刻", "CurrentTime : " + df.format(date));
         soundPlayer = null;
         mActivity = null;
     }

@@ -22,6 +22,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.io.ByteArrayInputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -43,7 +45,6 @@ public class MainActivity extends ActionMenuActivity{
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
-    public TextView situation_info;
     public ProgressBar progressBar;
 
     private Camera mCamera;
@@ -96,6 +97,8 @@ public class MainActivity extends ActionMenuActivity{
     //血液培養の注意喚起情報を提示するクラスのインスタンス
     SetInfo_blood blood;
 
+    //取得する日時のフォーマットを指定
+    final DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 
 
     @Override
@@ -105,7 +108,6 @@ public class MainActivity extends ActionMenuActivity{
         setContentView(R.layout.activity_main);
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
-        situation_info = findViewById(R.id.situation_info);
         attention_info = findViewById(R.id.attention_info);
         progressBar = findViewById(R.id.progressBar);
         createCount = 1;
@@ -202,9 +204,13 @@ public class MainActivity extends ActionMenuActivity{
                     new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
+                            Log.d("PushCameraButton", "カメラ撮影開始" );
+                            /*
+                            final Date date = new Date(System.currentTimeMillis());
+                            Log.d("現在時刻", "CurrentTime : " + df.format(date));
+                            */
                             take_picture = new TakePicture(mCamera, mPicture);
                             take_picture.execute(picture_count);
-                            //situation_info.setText("Now Recognition");
                             progressBar.setVisibility(View.VISIBLE);
                             captureButton.setVisibility(View.INVISIBLE);
                         }
@@ -272,10 +278,10 @@ public class MainActivity extends ActionMenuActivity{
         public void onPictureTaken(byte[] data, Camera camera) {
             Log.d("SystemCheck", "mPictureに入りました");
             picture_count ++;
-            //Log.d("画像データ", data.toString());
+
             ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
             theImage = BitmapFactory.decodeStream(imageInput);
-            bitmap2 = Bitmap.createScaledBitmap(theImage, 480, 480, false);
+            bitmap2 = Bitmap.createScaledBitmap(theImage, 480, 480, true);
 
             //SSL接続用
             //写真撮影後，サーバにアップロード
@@ -294,7 +300,6 @@ public class MainActivity extends ActionMenuActivity{
         }
     };
 
-
     //――――――――――――――――――――――――――――――――――――――――――――――HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
 
 
@@ -304,6 +309,12 @@ public class MainActivity extends ActionMenuActivity{
             @Override
             public void onSuccess(String result){
                 if(picture_count == 10){
+                    /*
+                    Log.d("10枚撮影&サーバ送信完了", "撮影枚数 : " + picture_count);
+                    final Date date = new Date(System.currentTimeMillis());
+                    //日時を指定したフォーマットで取得
+                    Log.d("現在時刻", "CurrentTime : " + df.format(date));
+                    */
                     picture_count = 0;
                 }
 
@@ -311,7 +322,13 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("SystemCheck", "------------NowRunningが返ってきました----------------" + result);
                 }
 
-                if(!result.equals("null")){
+                if(!result.equals("null")){//時刻をミリ秒で取得
+                    /*
+                    final Date date = new Date(System.currentTimeMillis());
+                    //日時を指定したフォーマットで取得
+                    Log.d("現在時刻", "CurrentTime : " + df.format(date));
+                    */
+
                     Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
 
                     if(return_result.get(result) == null){
@@ -578,8 +595,6 @@ public class MainActivity extends ActionMenuActivity{
         if(result.contains("kotuzui")){
             //ProgressBarを不可視
             progressBar.setVisibility(View.INVISIBLE);
-            //Now Recognition表示を不可視
-            //situation_info.setVisibility(View.INVISIBLE);
             kotuzui.run(nowLevel,handler);
         }
 
@@ -587,8 +602,6 @@ public class MainActivity extends ActionMenuActivity{
         if(result.contains("youtui")){
             //ProgressBarを不可視
             progressBar.setVisibility(View.INVISIBLE);
-            //Now Recognition表示を不可視
-            situation_info.setVisibility(View.INVISIBLE);
             youtui.run(nowLevel,handler);
         }
 
@@ -596,8 +609,6 @@ public class MainActivity extends ActionMenuActivity{
         if(result.contains("catheter")){
             //ProgressBarを不可視
             progressBar.setVisibility(View.INVISIBLE);
-            //Now Recognition表示を不可視
-            situation_info.setVisibility(View.INVISIBLE);
             catheter.run(nowLevel,handler);
         }
 
@@ -605,8 +616,6 @@ public class MainActivity extends ActionMenuActivity{
         if(result.contains("blood")){
             //ProgressBarを不可視
             progressBar.setVisibility(View.INVISIBLE);
-            //Now Recognition表示を不可視
-            situation_info.setVisibility(View.INVISIBLE);
             blood.run(nowLevel,handler);
         }
     }

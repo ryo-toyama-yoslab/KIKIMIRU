@@ -23,6 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -127,6 +130,16 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
             }
 
+            /*
+            //取得する日時のフォーマットを指定
+            final DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+
+            //時刻をミリ秒で取得
+            final Date date = new Date(System.currentTimeMillis());
+
+            //日時を指定したフォーマットで取得
+            Log.d("現在時刻", "CurrentTime : " + df.format(date));
+            */
 
             // 接続
             httpConn.connect();
