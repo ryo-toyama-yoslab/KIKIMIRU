@@ -132,12 +132,26 @@ public class SetInfo_kotuzui {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level3));
+
+            nextInfoLevel = 0; //情報提示終了フラグを設定
+            running = true;
+            controlInfo();
+        }else if (level == 0) {
+            Log.d("骨髄穿刺_終了", "骨髄穿刺の情報を提示を終了");
+
+            //アラートレベル表示を非表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+
+            //アラートレベルの注意喚起情報を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
             running = false;
+            //全情報提示が終わったのでスレッドを終了
+            stopThread();
         }
     }
 
     public void stopThread() {
-        Log.d("骨髄穿刺の情報提示中断", "再認識開始により情報提示を中断");
+        Log.d("骨髄穿刺の情報提示終了", "情報提示を中断もしくは終了します");
         //日時を指定したフォーマットで取得
         final Date date = new Date(System.currentTimeMillis());
         Log.d("現在時刻", "CurrentTime : " + df.format(date));

@@ -3,6 +3,7 @@ package com.example.toyamaryo.bladesampleapp;
 import android.app.Activity;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 
 public class SetInfo_catheter {
@@ -91,6 +92,18 @@ public class SetInfo_catheter {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level3));
+            nextInfoLevel = 0; //次に提示する注意喚起情報のレベルを設定
+            controlInfo();
+        }else if (level == 0) {
+            Log.d("中心静脈カテーテル挿入_終了", "中心静脈カテーテル挿入の情報を提示を終了");
+
+            //アラートレベル表示を非表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+
+            //アラートレベルの注意喚起情報を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
+            //全情報提示が終わったのでスレッドを終了
+            stopThread();
         }
     }
 

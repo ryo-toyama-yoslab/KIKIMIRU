@@ -62,12 +62,15 @@ public class MainActivity extends ActionMenuActivity{
     public int createCount;
 
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
-    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
-    private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
+    //private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    //private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
+    //private String url = "https://133.42.155.146/~toyama/sample.php";
+    //private String url_0 = "https://133.42.155.146/~toyama/ready.php";
 
     //仲介用phpのアドレス
-    //private String url = "http://202.245.226.85/~toyama/sample.php";
-    //private String url_0 = "http://202.245.226.85/~toyama/ready.php";
+    //private String url = "http://202.245.226.85/~toyama/public_html/sample.php";
+    private String url = "http://172.30.184.57/~toyama/sample.php";
+    private String url_0 = "http://172.30.184.57/~toyama/ready.php";
 
 
     //撮影した画像枚数(10枚ごとに更新)
@@ -146,17 +149,18 @@ public class MainActivity extends ActionMenuActivity{
         //SSL用
         //サーバに一時保存されている画像(9枚以下の時)を削除
 
+        /*
         uploadTaskReadySSL = new UploadTaskReadySSL();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReadySSL.execute(new Param(url_0));
-
+        */
 
         //非SSL用
-        /*
+
         uploadTaskReady = new UploadTaskReady();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReady.execute(new Param(url_0));
-        */
+
 
         captureButton = findViewById(R.id.button_capture);
 
@@ -210,6 +214,7 @@ public class MainActivity extends ActionMenuActivity{
                             Log.d("現在時刻", "CurrentTime : " + df.format(date));
                             */
                             take_picture = new TakePicture(mCamera, mPicture);
+                            Log.d("new TakePicture", "カメラインスタンス生成" );
                             take_picture.execute(picture_count);
                             progressBar.setVisibility(View.VISIBLE);
                             captureButton.setVisibility(View.INVISIBLE);
@@ -286,17 +291,18 @@ public class MainActivity extends ActionMenuActivity{
             //SSL接続用
             //写真撮影後，サーバにアップロード
 
+            /*
             uploadTaskSSL = new UploadTaskSSL();
             uploadTaskSSL.setListener(u_createListenerSSL());
             uploadTaskSSL.execute(new Param(url, bitmap2));
+            */
 
-            /*
             uploadTask = new UploadTask();
             uploadTask.setListener(u_createListener());
             uploadTask.execute(new Param(url, bitmap2));
-            */
 
-            Log.d("SystemCheck", "サーバへのアップロードを行いました");
+
+            Log.d("SystemCheck", "サーバへのアップロードを行います");
         }
     };
 
