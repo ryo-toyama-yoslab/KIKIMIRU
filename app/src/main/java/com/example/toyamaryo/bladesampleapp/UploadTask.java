@@ -132,6 +132,8 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
                 // POST送信エラー
                 e.printStackTrace();
             }
+            int status = httpConn.getResponseCode();
+            Log.d(TAG, "httpConnectStatus " + status);
 
         } catch (IOException e) {
             e.printStackTrace();

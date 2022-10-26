@@ -23,6 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -124,13 +127,22 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
                 //ここでsetSSLSocketFactoryを実行
                 httpConn.setSSLSocketFactory(sslcontext.getSocketFactory());
             }catch(Exception e){
-
+                e.printStackTrace();
             }
 
+            /*
+            //取得する日時のフォーマットを指定
+            final DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+
+            //時刻をミリ秒で取得
+            final Date date = new Date(System.currentTimeMillis());
+
+            //日時を指定したフォーマットで取得
+            Log.d("現在時刻", "CurrentTime : " + df.format(date));
+            */
 
             // 接続
             httpConn.connect();
-
 
             try(// POSTデータ送信処理
                 //Stringデータ送信パターン
@@ -144,6 +156,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
                 InputStream is = httpConn.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
+                //Log.d(TAG, "ConnectStream " + reader.read());
                 String line = "";
                 while ((line = reader.readLine()) != null)
                     sb.append(line);
@@ -154,6 +167,8 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
                 // POST送信エラー
                 e.printStackTrace();
             }
+            int status = httpConn.getResponseCode();
+            Log.d(TAG, "httpConnectStatus " + status);
 
         } catch (IOException e) {
             e.printStackTrace();

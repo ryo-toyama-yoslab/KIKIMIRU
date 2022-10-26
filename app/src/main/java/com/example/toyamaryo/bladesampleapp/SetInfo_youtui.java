@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.Color;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 
 public class SetInfo_youtui {
@@ -110,6 +111,18 @@ public class SetInfo_youtui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level3));
             exitThread = true;
+            nextInfoLevel = 0; //次に提示する注意喚起情報のレベルを設定
+            controlInfo();
+        }else if (level == 0) {
+            Log.d("腰椎穿刺_終了", "腰椎穿刺の情報を提示を終了");
+
+            //アラートレベル表示を非表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+
+            //アラートレベルの注意喚起情報を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
+            //全情報提示が終わったのでスレッドを終了
+            stopThread();
         }
     }
 

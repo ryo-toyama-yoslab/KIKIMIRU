@@ -92,6 +92,9 @@ public class UploadTaskReady  extends AsyncTask<Param, Void, String> {
                 e.printStackTrace();
             }
 
+            int status = httpConn.getResponseCode();
+            Log.d(TAG, "httpConnectStatus " + status);
+
         } catch (IOException e) {
             e.printStackTrace();
         }

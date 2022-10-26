@@ -97,18 +97,19 @@ public class UploadTaskReadySSL extends AsyncTask<Param, Void, String> {
                 //ここでsetSSLSocketFactoryを実行
                 httpsConn.setSSLSocketFactory(sslcontext.getSocketFactory());
             }catch(Exception e){
-
+                e.printStackTrace();
             }
 
 
             // 接続
             httpsConn.connect();
 
-
             try(// POSTデータ送信処理
                 //Stringデータ送信パターン
 
                 OutputStream outStream = httpsConn.getOutputStream()){
+
+
 
                 InputStream is = httpsConn.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
@@ -122,6 +123,9 @@ public class UploadTaskReadySSL extends AsyncTask<Param, Void, String> {
                 // POST送信エラー
                 e.printStackTrace();
             }
+
+            int status = httpsConn.getResponseCode();
+            Log.d(TAG, "httpConnectStatus " + status);
 
         } catch (IOException e) {
             e.printStackTrace();
