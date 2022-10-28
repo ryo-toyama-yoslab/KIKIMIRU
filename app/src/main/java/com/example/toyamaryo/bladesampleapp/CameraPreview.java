@@ -1,12 +1,18 @@
 package com.example.toyamaryo.bladesampleapp;
 
 import android.content.Context;
+import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.os.Environment;
 import android.util.Log;
+import android.hardware.Camera.Size;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 import static android.content.ContentValues.TAG;
 
@@ -19,33 +25,45 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         super(context);
         Log.d("System Log", " : CameraPreviewが呼ばれました");
         mCamera = camera;
-        // Install a SurfaceHolder.Callback so we get notified when the
-        // underlying surface is created and destroyed.
         mHolder = getHolder();
         mHolder.addCallback(this);
-        // deprecated setting, but required on Android versions prior to 3.0
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+        mHolder.setKeepScreenOn(true);//SurfaceViewが表示されている間は画面を常にオン
     }
 
     public void surfaceCreated(SurfaceHolder holder) {
         // The Surface has been created, now tell the camera where to draw the preview.
-        try {
-            mCamera.setPreviewDisplay(holder);
-            mCamera.startPreview();
-        }catch (IOException e) {
-            Log.d(TAG, "Error setting camera preview: " + e.getMessage());
+        if(mCamera != null){
+            // パラメータ取得
+            Camera.Parameters params = mCamera.getParameters();
+            // サイズ設定
+            params.setPictureSize(480, 480);
+            // パラメータ設定
+            mCamera.setParameters(params);
+            try {
+                mCamera.setPreviewDisplay(holder);
+                //mCamera.startPreview();
+            } catch (IOException e) {
+                Log.d(TAG, "Error setting camera preview: " + e.getMessage());
+            }
+
         }
 
     }
 
+
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.d(TAG, "surfaceDestroyed");
-        try{
-            mCamera.release();
-            mHolder = null;
-        }catch(Exception e)
-        {
-            e.printStackTrace();
+        if(mCamera != null) {
+            try {
+                mCamera.setPreviewCallback(null);
+                mCamera.stopPreview();
+                mCamera.release();
+                mCamera = null;
+                mHolder = null;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -54,30 +72,33 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         // Make sure to stop the preview before resizing or reformatting it.
         Log.d("System Log", " : surfaceChangedが呼ばれました");
         //プレビュースタート（Changedは最初にも1度は呼ばれる）
-        mCamera.startPreview();
+        if(mCamera != null) {
+            Camera.Parameters params = mCamera.getParameters();
+            params.setPictureFormat(PixelFormat.JPEG);
+            List list = params.getSupportedPreviewSizes();
 
-        if (mHolder.getSurface() == null){
-            // preview surface does not exist
-            return;
-        }
+            Log.d("CameraParam",list.toString());
 
-        // stop preview before making changes
-        try {
-            mCamera.stopPreview();
-        } catch (Exception e){
-            // ignore: tried to stop a non-existent preview
-        }
+            if (mHolder.getSurface() == null) {
+                // preview surface does not exist
+                return;
+            }
 
-        // set preview size and make any resize, rotate or
-        // reformatting changes here
+            // stop preview before making changes
 
-        // start preview with new settings
-        try {
-            mCamera.setPreviewDisplay(mHolder);
-            mCamera.startPreview();
+            try {
+                mCamera.stopPreview();
+            } catch (Exception e) {
+                // ignore: tried to stop a non-existent preview
+            }
 
-        } catch (Exception e){
-            Log.d(TAG, "Error starting camera preview: " + e.getMessage());
+
+            try {
+                mCamera.setPreviewDisplay(mHolder);
+                mCamera.startPreview();
+            } catch (Exception e) {
+                Log.d(TAG, "Error starting camera preview: " + e.getMessage());
+            }
         }
     }
 

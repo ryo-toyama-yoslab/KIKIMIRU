@@ -2,12 +2,11 @@ package com.example.toyamaryo.bladesampleapp;
 
 
 import android.app.Activity;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.os.AsyncTask;
-import android.util.Base64;
 import android.util.Log;
-import android.widget.TextView;
+import android.view.View;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -39,14 +38,15 @@ import static android.content.ContentValues.TAG;
 import static android.icu.lang.UCharacter.GraphemeClusterBreak.L;
 import static org.apache.http.conn.ssl.SSLSocketFactory.SSL;
 
-public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
+public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
 
-    private UploadTaskSSL.Listener listener;
+    private GetResultTaskSSL.Listener listener;
     private MainActivity mainActivity;
 
-    public UploadTaskSSL(){
+    public GetResultTaskSSL(){
         mainActivity = new MainActivity();
     }
+
 
     // 非同期処理
     @Override
@@ -62,15 +62,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
 
 
-        try{
-            //BitmapをBase64にエンコード
-            ByteArrayOutputStream jpg = new ByteArrayOutputStream();
-            param.bmp.compress(Bitmap.CompressFormat.JPEG, 100, jpg);
-            byte[] b = jpg.toByteArray();
-            String imageEncoded = Base64.encodeToString(b,Base64.DEFAULT);
-            img = img + imageEncoded.trim();
-
-
+        try {
             // URL設定
             URL url = new URL(urlSt);
 
@@ -78,13 +70,13 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
             httpConn = (HttpsURLConnection) url.openConnection();
 
             // request POST
-            httpConn.setRequestMethod("POST");
+            httpConn.setRequestMethod("GET");
 
             // no Redirects
             httpConn.setInstanceFollowRedirects(false);
 
             // データを書き込む(書き込まない，GETの場合はfalseに)
-            httpConn.setDoOutput(true);
+            httpConn.setDoOutput(false);
 
             // 時間制限
             httpConn.setReadTimeout(10000000);
@@ -126,7 +118,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
                 //ここでsetSSLSocketFactoryを実行
                 httpConn.setSSLSocketFactory(sslcontext.getSocketFactory());
-            }catch(Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
@@ -144,40 +136,32 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
             // 接続
             httpConn.connect();
 
-            try(// POSTデータ送信処理
-                //Stringデータ送信パターン
+            // レスポンスコードの確認します。
+            /*
+            int responseCode = httpConn.getResponseCode();
+            if (responseCode != HttpsURLConnection.HTTP_OK) {
+                throw new IOException("HTTP responseCode: " + responseCode);
+            }*/
 
-                OutputStream outStream = httpConn.getOutputStream()){
-                //送信データ確認用
-                //Log.d("画像Byteデータ",img);
-                outStream.write(img.getBytes(StandardCharsets.ISO_8859_1));
-                outStream.flush();
-                //Log.d("debug","flush");
-
+            try {
                 InputStream is = httpConn.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
-                //Log.d(TAG, "ConnectStream " + reader.read());
                 String line = "";
                 while ((line = reader.readLine()) != null)
                     sb.append(line);
                 is.close();
-                Log.d(TAG, "ReturnFromServer " + sb.toString());
-
+                //Log.d(TAG, "ReturnFromServer " + sb.toString());
             } catch (IOException e) {
                 // POST送信エラー
                 e.printStackTrace();
             }
-            int status = httpConn.getResponseCode();
-            //Log.d(TAG, "httpConnectStatus " + status);
 
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            /*
             if (httpConn != null) {
                 httpConn.disconnect();
             }
-            */
         }
 
         return sb.toString();
@@ -193,8 +177,12 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
         }
     }
 
-    void setListener(UploadTaskSSL.Listener listener) {
+    void setListener(GetResultTaskSSL.Listener listener) {
         this.listener = listener;
+    }
+
+    void removeListener(GetResultTaskSSL.Listener listener){
+        this.listener = null;
     }
 
     interface Listener {

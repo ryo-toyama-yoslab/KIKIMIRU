@@ -28,7 +28,15 @@ public class TakePicture extends AsyncTask<Integer, Void, Integer> {
     // バックグランドで行う処理
     @Override
     protected Integer doInBackground(Integer... picture_count) {
-        mCamera.takePicture(null, null, mPicture);
+        Log.d("takePicture", "takePictureを実行");
+        //mCamera.takePicture(null, null, mPicture);
+        mCamera.takePicture(null, null, new Camera.PictureCallback() {
+            @Override
+            public void onPictureTaken(byte[] data, Camera camera) {
+                //Important: Call startPreview() to start updating the preview surface.
+                camera.startPreview();
+            }
+        });
         picture_num = picture_count[0] + 1;
         Log.d("画像撮影バックグランド処理", "画像撮影を実行");
 
