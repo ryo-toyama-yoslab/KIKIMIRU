@@ -12,6 +12,7 @@ class Param {
         this.bmp = bmp;
     }
 
+
     public Param(String uri) {
         this.uri = uri;
     }

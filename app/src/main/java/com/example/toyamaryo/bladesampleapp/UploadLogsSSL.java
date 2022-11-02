@@ -1,16 +1,8 @@
 package com.example.toyamaryo.bladesampleapp;
 
-
-import android.graphics.Bitmap;
 import android.os.AsyncTask;
-import android.util.Base64;
-import android.util.Log;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -23,11 +15,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.HttpsURLConnection;
 
-import static android.content.ContentValues.TAG;
 
-public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
+public class UploadLogsSSL extends AsyncTask<Param, Void, String> {
 
     // 非同期処理
     @Override
@@ -36,20 +26,16 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
-        String img = "img=";
+        String log = "log=";
 
         HttpsURLConnection httpConn = null;
         StringBuilder sb = new StringBuilder();
 
-
-
         try{
-            //BitmapをBase64にエンコード
-            ByteArrayOutputStream jpg = new ByteArrayOutputStream();
-            param.bmp.compress(Bitmap.CompressFormat.JPEG, 100, jpg);
-            byte[] b = jpg.toByteArray();
-            String imageEncoded = Base64.encodeToString(b,Base64.DEFAULT);
-            img = img + imageEncoded.trim();
+
+            //サーバに送信するログ
+            String log_str = param.str;
+            log += log_str;
 
             // URL設定
             URL url = new URL(urlSt);
@@ -117,19 +103,18 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
                 //Stringデータ送信パターン
 
                 OutputStream outStream = httpConn.getOutputStream()){
-                outStream.write(img.getBytes(StandardCharsets.ISO_8859_1));
+                //送信データ確認用
+                //Log.d("画像Byteデータ",img);
+                outStream.write(log.getBytes(StandardCharsets.UTF_8));
                 outStream.flush();
 
                 InputStream is = httpConn.getInputStream();
                 is.close();
-                //Log.d(TAG, "ReturnFromServer " + sb.toString());
 
             } catch (IOException e) {
                 // POST送信エラー
                 e.printStackTrace();
             }
-            int status = httpConn.getResponseCode();
-
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -144,6 +129,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
     // 非同期処理が終了後、結果をメインスレッドに返す
     @Override
     protected void onPostExecute(String result) {
+        //認識結果のラベル名をテキスト表示
         super.onPostExecute(result);
     }
 

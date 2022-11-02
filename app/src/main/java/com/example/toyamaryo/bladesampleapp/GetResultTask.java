@@ -1,31 +1,17 @@
 package com.example.toyamaryo.bladesampleapp;
 
 import android.os.AsyncTask;
-import android.util.Log;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
-public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
+public class GetResultTask extends AsyncTask<Param, Void, String>  {
 
-    private GetResultTaskSSL.Listener listener;
-    private MainActivity mainActivity;
 
-    public GetResultTaskSSL(){
-        mainActivity = new MainActivity();
-    }
-
+    private GetResultTask.Listener listener;
 
     // 非同期処理
     @Override
@@ -63,41 +49,6 @@ public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
             //レスポンスのボディ受信を許可(許可しないならfalseに)
             httpConn.setDoInput(true);
 
-            try {
-                //証明書情報　全て空を返す
-                TrustManager[] tm = {new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() {
-                        return null;
-                    }
-
-                    @Override
-                    public void checkClientTrusted(X509Certificate[] chain,
-                                                   String authType) throws CertificateException {
-                    }
-
-                    @Override
-                    public void checkServerTrusted(X509Certificate[] chain,
-                                                   String authType) throws CertificateException {
-                    }
-                }};
-                SSLContext sslcontext = SSLContext.getInstance("SSL");
-                sslcontext.init(null, tm, null);
-                //ホスト名の検証ルール　何が来てもtrueを返す
-                HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-                    @Override
-                    public boolean verify(String hostname,
-                                          SSLSession session) {
-                        return true;
-                    }
-                });
-
-
-                //ここでsetSSLSocketFactoryを実行
-                httpConn.setSSLSocketFactory(sslcontext.getSocketFactory());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
             // 接続
             httpConn.connect();
 
@@ -127,7 +78,7 @@ public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
                 httpConn.disconnect();
             }
         }
-        //Log.d("ReturnFromServer : ", sb.toString());
+
         return sb.toString();
     }
 
@@ -141,11 +92,11 @@ public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
         }
     }
 
-    void setListener(GetResultTaskSSL.Listener listener) {
+    void setListener(GetResultTask.Listener listener) {
         this.listener = listener;
     }
 
-    void removeListener(GetResultTaskSSL.Listener listener){
+    void removeListener(GetResultTask.Listener listener){
         this.listener = null;
     }
 
@@ -153,3 +104,4 @@ public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
         void onSuccess(String result);
     }
 }
+

@@ -1,7 +1,5 @@
 package com.example.toyamaryo.bladesampleapp;
 
-
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -15,7 +13,6 @@ import android.os.Bundle;
 import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
@@ -24,24 +21,19 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import static android.content.ContentValues.TAG;
-
 public class MainActivity extends ActionMenuActivity{
+
     //SSL認証サーバとの接続用
     private UploadTaskSSL uploadTaskSSL;
     private UploadTaskReadySSL uploadTaskReadySSL;
@@ -52,6 +44,11 @@ public class MainActivity extends ActionMenuActivity{
 
     //認識結果確認用非同期処理クラスのインスタンス
     private GetResultTaskSSL getResultTaskSSL;
+    private GetResultTask getResultTask;
+
+    //アプリ内ログをサーバに保存する用クラスのインスタンス
+    private UploadLogsSSL uploadLogsSSL;
+    private UploadLogs uploadLogs;
 
 
     public TextView iryo_name;
@@ -75,15 +72,15 @@ public class MainActivity extends ActionMenuActivity{
 
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
     private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
-    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/sample.php";
+    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/getImage.php";
     private String url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/returnRecognitionResult.php";
-
-    //private String url_0 = "https://133.42.155.146/~toyama/ready.php";
-    //private String url = "https://133.42.155.146/~toyama/sample.php";
+    private String url_log = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/save_log.php";
 
     //仲介用phpのアドレス
     //private String url_0 = "http://172.30.184.57/~toyama/ready.php";
-    //private String url = "http://172.30.184.57/~toyama/sample.php";
+    //private String url = "http://172.30.184.57/~toyama/getImage.php";
+    //private String url_get = "https://172.30.184.57/~toyama/returnRecognitionResult.php";
+    //private String url_log = "https://172.30.184.57/~toyama/save_log.php";
 
 
     //撮影した画像枚数(10枚ごとに更新)
@@ -104,6 +101,7 @@ public class MainActivity extends ActionMenuActivity{
     public String now_info = null;
 
 
+
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
     //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
@@ -113,12 +111,19 @@ public class MainActivity extends ActionMenuActivity{
     //血液培養の注意喚起情報を提示するクラスのインスタンス
     SetInfo_blood blood;
 
+    String log_line; //ログ一時保存用
+
+    StringBuilder log; //ログ保存用
+
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //ログ保存用インスタンス生成
+        log = new StringBuilder();
+
         Log.d("LifeCycleCheck", "onCreate()が呼び出されました");
-        saveLog("LifeCycleCheck    onCreate()が呼び出されました");
+
         setContentView(R.layout.activity_main);
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
@@ -129,7 +134,6 @@ public class MainActivity extends ActionMenuActivity{
         mainHandler = new Handler();
         // 撮影スレッドの停止用Handlerを生成
         shotHandler = new Handler();
-
 
         // 結果取得用スレッドの停止用フラグを生成
         getResultHandler = new Handler();
@@ -204,11 +208,14 @@ public class MainActivity extends ActionMenuActivity{
         end_btn.setOnClickListener(new View.OnClickListener() {
                @Override
                public void onClick(View v) {
+                   Log.d("EndButton","終了ボタンが押されました");
+                   moveTaskToBack(true); //アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
+
                    getRunnnig = false;
                    getResultTaskSSL.removeListener(g_createListenerSSL());
-                   moveTaskToBack(true); //アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
-                   Log.d("EndButton","終了ボタンが押されました");
-                   onDestroy();//アプリ終了処理の関数
+                   //getResultTask.removeListener(g_createListener());
+
+                   finish(); //アプリケーション終了 再開時はonCreate()から
                }
             }
         );
@@ -354,14 +361,141 @@ public class MainActivity extends ActionMenuActivity{
         //認識結果確認用インスタンスの生成
         getResultTaskSSL = new GetResultTaskSSL();
         getResultTaskSSL.setListener(g_createListenerSSL());
-        //getResultTaskSSL.execute(new Param(url_get, theImage));
         getResultTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get, theImage));
+
+        /*
+        getResultTask = new getResultTask();
+        getResultTask.setListener(g_createListener());
+        getResultTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get, theImage));
+         */
 
     }
 
-    //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用――――――――――――――――――――――――――――――――――――――――――――――――――
+    //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用 研究室用――――――――――――――――――――――――――――――――――――――――――――――――――
     private GetResultTaskSSL.Listener g_createListenerSSL() {
         return new GetResultTaskSSL.Listener() {
+            @Override
+            public void onSuccess(String result){
+                if(getRunnnig) {
+                    if(!result.equals("null")) {
+                        Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result + " -time : ");
+
+                        if (return_result.get(result) == null) {
+                            //初の認識結果なら１を追加
+                            return_result.put(result, 1);
+                        } else {
+                            //既に追加されてる結果は＋1
+                            return_result.put(result, return_result.get(result) + 1);
+                        }
+
+                        //Log.d("result", "認識結果:" + result);
+                        Log.d("result", "認識結果数:" + return_result.size());
+                        Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
+                        //1回目の認識結果が来た時の処理
+                        if (return_result.size() == 1) {
+                            if (result.contains("no_results")) {
+                                Log.d("認識失敗", "認識失敗のため再度認識を行います");
+                            } else {
+                                if (return_result.get(result) == 1) {
+                                    //no_results以外の結果が初めて出た場合
+                                    Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                                    now_info = result;
+                                    setInfo(result);
+                                } else { //システム開始から同じ認識結果が2回出た場合
+                                    Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                                }
+                            }
+                        }
+
+                        //認識2回目以降の処理，提示する情報を選択
+                        if (return_result.size() > 1) {
+                            if (result.contains("no_results")) {
+                                Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
+                            } else if (return_result.size() == 2 && now_info == null) {
+                                //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
+                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                                now_info = result;
+                                setInfo(result);
+                            } else {
+                                //認識結果を降順にソート
+                                List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
+                                Collections.sort(list, new Comparator<Entry<String, Integer>>() {
+                                    //compareを使用して値を比較する
+                                    public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2) {
+                                        //降順
+                                        return obj2.getValue().compareTo(obj1.getValue());
+                                    }
+                                });
+
+                                for (Entry<String, Integer> entry : list) {
+                                    if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
+                                        if (entry.getValue() > return_result.get(result)) {
+                                            Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
+                                            break;
+                                        } else if (entry.getValue() < return_result.get(result)) {
+                                            //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
+                                            if (result.contains(now_info)) {
+                                                //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
+                                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                                                break;
+                                            } else {
+                                                Log.d("情報変更", "新しい結果が適切な情報と判断");
+                                                now_info = result;
+                                                setInfo(result);
+                                                break;
+                                            }
+                                        } else {
+                                            //新しい認識結果が現状最も多い結果と同回数
+                                            Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                            iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                            alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                            alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                            attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                            attention_info.setText("再認識中");
+                                            if (now_info.equals("kotuzui")) {
+                                                //情報提示用マルチスレッドを中断
+                                                kotuzui.stopThread();
+                                                //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+                                                kotuzui = new SetInfo_kotuzui(MainActivity.this);
+                                            } else if (now_info.equals("youtui")) {
+                                                //情報提示用マルチスレッドを中断
+                                                youtui.stopThread();
+                                                //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+                                                SetInfo_youtui youtui;
+                                            } else if (now_info.equals("catheter")) {
+                                                //情報提示用マルチスレッドを中断
+                                                catheter.stopThread();
+                                                //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+                                                SetInfo_catheter catheter;
+                                            } else if (now_info.equals("blood")) {
+                                                //情報提示用マルチスレッドを中断
+                                                blood.stopThread();
+                                                //血液培養の注意喚起情報を提示するクラスのインスタンス
+                                                SetInfo_blood blood;
+                                            }
+                                            break;
+                                        }
+                                    } else {
+                                        Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
+                                    }
+                                }
+
+                            }
+
+                        }
+                    }
+                    GetResult();
+                }
+            }
+        };
+    }
+    //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用 研究室用――――――――――――――――――――――――――――――――――――――――――――――――――
+
+
+    //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTP接続時使用 現地用――――――――――――――――――――――――――――――――――――――――――――――――――
+    private GetResultTask.Listener g_createListener() {
+        return new GetResultTask.Listener() {
             @Override
             public void onSuccess(String result){
                 if(getRunnnig) {
@@ -478,8 +612,7 @@ public class MainActivity extends ActionMenuActivity{
             }
         };
     }
-    //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用―――――――――――――――――――――――――――――――――――――――――――――
-
+    //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTP接続時使用 現地用――――――――――――――――――――――――――――――――――――――――――――――――――
 
     //情報提示プログラム実行用関数
     public void setInfo(String result){
@@ -517,17 +650,6 @@ public class MainActivity extends ActionMenuActivity{
         return picture_count;
     }
 
-    // ローカルファイルにデータを保存する
-    private void saveLog(String text) {
-        try {
-            OutputStream out = getContext().openFileOutput("log.txt", Context.MODE_PRIVATE);
-            PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, "UTF-8"));
-            writer.append(text);
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     @Override
     protected boolean onCreateActionMenu(Menu menu) {
@@ -545,7 +667,42 @@ public class MainActivity extends ActionMenuActivity{
     protected void onDestroy() {
         super.onDestroy();
         Log.d("LifeCycleCheck", "End Application");
-        finish(); //アプリケーション終了 再開時はonCreate()から
+
+        Process process;
+        BufferedReader reader = null;
+        Log.d("Log : ", "Start Write Logs");
+        try {
+            process = Runtime.getRuntime().exec(new String[] { "logcat", "-v", "time"});
+            reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            while ((log_line = reader.readLine()) != null) {
+                if(!log_line.contains("Start Write Logs")){
+                    String temp = log_line + "\r\n";
+                    log.append(temp);
+                }else{
+                    break;
+                }
+            }
+            Log.d("Log : ", "ログの書き出し終了");
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+        finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        uploadLogsSSL = new UploadLogsSSL();
+        uploadLogsSSL.execute(new Param(url_log, log.toString()));
+
+        /*
+        uploadLogs = new UploadLogs();
+        uploadLogs.execute(new Param(url_log, log.toString()));
+        */
 
     }
 }
