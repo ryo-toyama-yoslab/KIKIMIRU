@@ -87,7 +87,7 @@ public class SetInfo_blood {
     }
 
     public void stopThread() {
-        Log.d("血液培養の情報提示中断", "再認識開始により情報提示を中断");
+        Log.d("血液培養の情報提示終了", "情報提示を中断もしくは終了します");
         soundPlayer = null;
         mActivity = null;
     }

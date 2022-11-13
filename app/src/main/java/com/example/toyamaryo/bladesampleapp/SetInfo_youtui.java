@@ -127,7 +127,7 @@ public class SetInfo_youtui {
     }
 
     public void stopThread() {
-        Log.d("腰椎穿刺の情報提示中断", "再認識開始により情報提示を中断");
+        Log.d("腰椎穿刺の情報提示終了", "情報提示を中断もしくは終了します");
         soundPlayer = null;
         mActivity = null;
     }

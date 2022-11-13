@@ -1,60 +1,44 @@
 package com.example.toyamaryo.bladesampleapp;
 
-import android.graphics.Bitmap;
 import android.os.AsyncTask;
-import android.util.Base64;
-import android.util.Log;
-
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
+import java.io.InputStreamReader;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import javax.net.ssl.HttpsURLConnection;
 
-public class UploadTask extends AsyncTask<Param, Void, String> {
+public class GetResultTask extends AsyncTask<Param, Void, String>  {
+
+
+    private GetResultTask.Listener listener;
 
     // 非同期処理
     @Override
     protected String doInBackground(Param... params) {
-        Log.d("SystemCheck", "サーバへのアップロード中です");
         Param param = params[0];
 
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
-        String img = "img=";
 
-        //HttpsURLConnection httpConn = null;
-        HttpURLConnection httpConn = null;
+        HttpsURLConnection httpConn = null;
         StringBuilder sb = new StringBuilder();
 
-        try{
-            //BitmapをBase64にエンコード
-            ByteArrayOutputStream jpg = new ByteArrayOutputStream();
-            param.bmp.compress(Bitmap.CompressFormat.JPEG, 100, jpg);
-            byte[] b = jpg.toByteArray();
-            String imageEncoded = Base64.encodeToString(b,Base64.DEFAULT);
-            img = img + imageEncoded.trim();
-
+        try {
             // URL設定
             URL url = new URL(urlSt);
 
             // HttpURLConnection
-            //httpConn = (HttpsURLConnection) url.openConnection();
-            httpConn = (HttpURLConnection)url.openConnection();
+            httpConn = (HttpsURLConnection) url.openConnection();
 
             // request POST
-            httpConn.setRequestMethod("POST");
-
-            // request GET
-            //httpConn.setRequestMethod("GET");
+            httpConn.setRequestMethod("GET");
 
             // no Redirects
             httpConn.setInstanceFollowRedirects(false);
 
             // データを書き込む(書き込まない，GETの場合はfalseに)
-            httpConn.setDoOutput(true);
+            httpConn.setDoOutput(false);
 
             // 時間制限
             httpConn.setReadTimeout(10000000);
@@ -68,18 +52,20 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
             // 接続
             httpConn.connect();
 
+            // レスポンスコードの確認します。
+            /*
+            int responseCode = httpConn.getResponseCode();
+            if (responseCode != HttpsURLConnection.HTTP_OK) {
+                throw new IOException("HTTP responseCode: " + responseCode);
+            }*/
 
-            try(// POSTデータ送信処理
-                //Stringデータ送信パターン
-
-                OutputStream outStream = httpConn.getOutputStream()){
-                outStream.write(img.getBytes(StandardCharsets.ISO_8859_1));
-                outStream.flush();
-
+            try {
                 InputStream is = httpConn.getInputStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
+                String line = "";
+                while ((line = reader.readLine()) != null)
+                    sb.append(line);
                 is.close();
-                //Log.d(TAG, "ReturnFromServer " + sb.toString());
-
             } catch (IOException e) {
                 // POST送信エラー
                 e.printStackTrace();
@@ -99,10 +85,23 @@ public class UploadTask extends AsyncTask<Param, Void, String> {
     // 非同期処理が終了後、結果をメインスレッドに返す
     @Override
     protected void onPostExecute(String result) {
+        //認識結果のラベル名をテキスト表示
         super.onPostExecute(result);
+        if (listener != null) {
+            listener.onSuccess(result);
+        }
+    }
+
+    void setListener(GetResultTask.Listener listener) {
+        this.listener = listener;
+    }
+
+    void removeListener(GetResultTask.Listener listener){
+        this.listener = null;
     }
 
     interface Listener {
         void onSuccess(String result);
     }
 }
+
