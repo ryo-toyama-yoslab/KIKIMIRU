@@ -77,11 +77,12 @@ public class MainActivity extends ActionMenuActivity{
     private String url_log = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/save_log.php";
 
     //仲介用phpのアドレス
-    //private String url_0 = "http://172.30.184.57/~toyama/ready.php";
-    //private String url = "http://172.30.184.57/~toyama/getImage.php";
-    //private String url_get = "https://172.30.184.57/~toyama/returnRecognitionResult.php";
-    //private String url_log = "https://172.30.184.57/~toyama/save_log.php";
-
+    /*
+    private String url_0 = "http://172.30.184.57/~toyama/ready.php";
+    private String url = "http://172.30.184.57/~toyama/getImage.php";
+    private String url_get = "https://172.30.184.57/~toyama/returnRecognitionResult.php";
+    private String url_log = "https://172.30.184.57/~toyama/save_log.php";
+    */
 
     //撮影した画像枚数(10枚ごとに更新)
     public int picture_count;
@@ -115,9 +116,19 @@ public class MainActivity extends ActionMenuActivity{
 
     StringBuilder log; //ログ保存用
 
+    private Process process_log; //logcat実行用
+
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
+        try{
+            Runtime.getRuntime().exec(new String[] { "logcat", "-c"}); //以前のログをクリア
+            process_log = Runtime.getRuntime().exec(new String[] { "logcat", "-v", "time"}); //ログを保存するためのlogcatコマンドを実行
+        }catch(Exception e){
+            e.printStackTrace();
+        }
 
         //ログ保存用インスタンス生成
         log = new StringBuilder();
@@ -171,13 +182,13 @@ public class MainActivity extends ActionMenuActivity{
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReadySSL.execute(new Param(url_0));
 
+
         //非SSL用
         /*
         uploadTaskReady = new UploadTaskReady();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReady.execute(new Param(url_0));
         */
-
         captureButton = findViewById(R.id.button_capture);
 
         //注意喚起情報変更用関数(骨髄穿刺)
@@ -341,14 +352,14 @@ public class MainActivity extends ActionMenuActivity{
         mCamera.takePicture(null, null, new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] data, Camera camera) {
-                picture_count++;
-                //Log.d("onPictureTaken", "撮影完了 撮影回数 : " + picture_count);
                 ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
                 theImage = BitmapFactory.decodeStream(imageInput);
 
-                //Log.d("UploadPicture", "サーバへのアップロードを行います 撮影回数 : " + picture_count);
                 uploadTaskSSL = new UploadTaskSSL();
                 uploadTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
+
+                //uploadTask = new UploadTask();
+                //uploadTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
 
                 mCamera.startPreview();//SurfaceViewの描画更新
                 ContinueShot();//次の撮影
@@ -364,11 +375,10 @@ public class MainActivity extends ActionMenuActivity{
         getResultTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get, theImage));
 
         /*
-        getResultTask = new getResultTask();
+        getResultTask = new GetResultTask();
         getResultTask.setListener(g_createListener());
         getResultTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get, theImage));
-         */
-
+        */
     }
 
     //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用 研究室用――――――――――――――――――――――――――――――――――――――――――――――――――
@@ -378,7 +388,7 @@ public class MainActivity extends ActionMenuActivity{
             public void onSuccess(String result){
                 if(getRunnnig) {
                     if(!result.equals("null")) {
-                        Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result + " -time : ");
+                        Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
 
                         if (return_result.get(result) == null) {
                             //初の認識結果なら１を追加
@@ -662,18 +672,15 @@ public class MainActivity extends ActionMenuActivity{
         return false;
     }
 
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
         Log.d("LifeCycleCheck", "End Application");
 
-        Process process;
         BufferedReader reader = null;
         Log.d("Log : ", "Start Write Logs");
         try {
-            process = Runtime.getRuntime().exec(new String[] { "logcat", "-v", "time"});
-            reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            reader = new BufferedReader(new InputStreamReader(process_log.getInputStream()));
             while ((log_line = reader.readLine()) != null) {
                 if(!log_line.contains("Start Write Logs")){
                     String temp = log_line + "\r\n";
@@ -684,25 +691,23 @@ public class MainActivity extends ActionMenuActivity{
             }
             Log.d("Log : ", "ログの書き出し終了");
         }catch (IOException e) {
-            e.printStackTrace();
+            Log.d("Error", e.getMessage());
         }
         finally {
             if (reader != null) {
                 try {
                     reader.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.d("Error", e.getMessage());
                 }
             }
         }
 
         uploadLogsSSL = new UploadLogsSSL();
         uploadLogsSSL.execute(new Param(url_log, log.toString()));
-
         /*
         uploadLogs = new UploadLogs();
         uploadLogs.execute(new Param(url_log, log.toString()));
         */
-
     }
 }

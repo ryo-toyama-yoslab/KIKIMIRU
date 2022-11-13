@@ -1,13 +1,19 @@
 package com.example.toyamaryo.bladesampleapp;
 
 import android.os.AsyncTask;
+
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
@@ -109,8 +115,12 @@ public class UploadLogsSSL extends AsyncTask<Param, Void, String> {
                 outStream.flush();
 
                 InputStream is = httpConn.getInputStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
+                String line = "";
+                while ((line = reader.readLine()) != null)
+                    sb.append(line);
                 is.close();
-
+                System.out.println(sb.toString());
             } catch (IOException e) {
                 // POST送信エラー
                 e.printStackTrace();
