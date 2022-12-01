@@ -5,8 +5,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import javax.net.ssl.HttpsURLConnection;
 
 public class GetResultTask extends AsyncTask<Param, Void, String>  {
 
@@ -21,7 +21,7 @@ public class GetResultTask extends AsyncTask<Param, Void, String>  {
         // 使用するサーバーのURLに合わせる
         String urlSt = param.uri;
 
-        HttpsURLConnection httpConn = null;
+        HttpURLConnection httpConn = null;
         StringBuilder sb = new StringBuilder();
 
         try {
@@ -29,16 +29,20 @@ public class GetResultTask extends AsyncTask<Param, Void, String>  {
             URL url = new URL(urlSt);
 
             // HttpURLConnection
-            httpConn = (HttpsURLConnection) url.openConnection();
+            //httpConn = (HttpsURLConnection) url.openConnection();
+            httpConn = (HttpURLConnection)url.openConnection();
 
             // request POST
-            httpConn.setRequestMethod("GET");
+            httpConn.setRequestMethod("POST");
+
+            // request GET
+            //httpConn.setRequestMethod("GET");
 
             // no Redirects
             httpConn.setInstanceFollowRedirects(false);
 
             // データを書き込む(書き込まない，GETの場合はfalseに)
-            httpConn.setDoOutput(false);
+            httpConn.setDoOutput(true);
 
             // 時間制限
             httpConn.setReadTimeout(10000000);
@@ -51,6 +55,7 @@ public class GetResultTask extends AsyncTask<Param, Void, String>  {
 
             // 接続
             httpConn.connect();
+
 
             // レスポンスコードの確認します。
             /*

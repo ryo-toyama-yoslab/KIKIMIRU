@@ -26,6 +26,8 @@
     <string name="central_catheter_in_level3">抗血小板剤、抗凝固剤の内服は\nありませんか</string>
     <string name="blood_cl_bottle_level3">血液培養は2セット\n採取してください</string>
     <string name="iryo_name_default">医療行為：</string>
+    <string name="iryo_now_recognition">医療行為：認識中</string>
+    <string name="iryo_now_recognition_anew">医療行為：再認識中</string>
     <string name="iryo_name_Kotuzuisennsi">医療行為：骨髄穿刺</string>
     <string name="iryo_name_CatheterSounyuu">医療行為：中心静脈カテーテル挿入</string>
     <string name="iryo_name_YoutuiSensi">医療行為：腰椎穿刺</string>

@@ -109,8 +109,6 @@ public class UploadTaskReadySSL extends AsyncTask<Param, Void, String> {
 
                 OutputStream outStream = httpsConn.getOutputStream()){
 
-
-
                 InputStream is = httpsConn.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, "iso-8859-1"));
                 String line = "";

@@ -39,21 +39,20 @@ public class SetInfo_catheter {
                 try {
                     Log.d("注意喚起情報変更インターバル", "次の注意喚起情報提示まで5秒待機");
                     Thread.sleep(5000); // 5秒待機
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                setInfo(nextInfoLevel);
+                            }catch (java.lang.NullPointerException e){
+                                Log.d("中心静脈カテーテル挿入マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
+                                //e.printStackTrace();
+                            }
+                        }
+                    });
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            setInfo(nextInfoLevel);
-                        }catch (java.lang.NullPointerException e){
-                            Log.d("中心静脈カテーテル挿入マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
-                            e.printStackTrace();
-                        }
-                    }
-                });
-
             }
         }).start();
     }

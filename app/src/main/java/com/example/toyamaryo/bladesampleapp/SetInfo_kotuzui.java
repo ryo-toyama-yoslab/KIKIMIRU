@@ -54,12 +54,12 @@ public class SetInfo_kotuzui {
                                 setInfo(nextInfoLevel);
                             }catch (java.lang.NullPointerException e){
                                 Log.d("骨髄穿刺マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
-                                e.printStackTrace();
+                                //e.printStackTrace();
                             }
                         }
                     });
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    Log.d("情報提示スレッドエラー","骨髄穿刺のcontrolInfoでエラー発生" + e.toString());
                 }
             }
         }).start();

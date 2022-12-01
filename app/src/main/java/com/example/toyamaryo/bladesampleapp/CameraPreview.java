@@ -17,7 +17,7 @@ import java.util.List;
 import static android.content.ContentValues.TAG;
 
 /** A basic Camera preview class */
-public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
+public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback{
     private SurfaceHolder mHolder;
     public Camera mCamera;
 
@@ -92,7 +92,6 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
                 // ignore: tried to stop a non-existent preview
             }
 
-
             try {
                 mCamera.setPreviewDisplay(mHolder);
                 mCamera.startPreview();
@@ -101,6 +100,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             }
         }
     }
+
 
     public SurfaceHolder returnHolder(){
         return mHolder;

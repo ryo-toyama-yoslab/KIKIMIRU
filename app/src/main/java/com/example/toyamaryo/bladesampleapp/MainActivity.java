@@ -12,6 +12,7 @@ import android.os.Bundle;
 
 import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
@@ -22,15 +23,27 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends ActionMenuActivity{
 
@@ -66,6 +79,8 @@ public class MainActivity extends ActionMenuActivity{
     public Runnable shotRun;
     public Handler getResultHandler;
     public Runnable getResultRun;
+    public Handler saveLogHandler;
+    //public Runnable saveLogtRun;
 
     private boolean ShotFlag = false;//撮影を開始しているか
     private boolean getRunnnig = false;//認識結果取得実行用フラグ
@@ -80,12 +95,9 @@ public class MainActivity extends ActionMenuActivity{
     /*
     private String url_0 = "http://172.30.184.57/~toyama/ready.php";
     private String url = "http://172.30.184.57/~toyama/getImage.php";
-    private String url_get = "https://172.30.184.57/~toyama/returnRecognitionResult.php";
-    private String url_log = "https://172.30.184.57/~toyama/save_log.php";
+    private String url_get = "http://172.30.184.57/~toyama/returnRecognitionResult.php";
+    private String url_log = "http://172.30.184.57/~toyama/save_log.php";
     */
-
-    //撮影した画像枚数(10枚ごとに更新)
-    public int picture_count;
 
 
     private int nowLevel;
@@ -102,7 +114,6 @@ public class MainActivity extends ActionMenuActivity{
     public String now_info = null;
 
 
-
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
     //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
@@ -112,26 +123,25 @@ public class MainActivity extends ActionMenuActivity{
     //血液培養の注意喚起情報を提示するクラスのインスタンス
     SetInfo_blood blood;
 
-    String log_line; //ログ一時保存用
+
+    //ログ保存用クラスのインスタンス
+    SaveLog saveLog;
 
     StringBuilder log; //ログ保存用
-
+    boolean logFlag = false;
+    private int log_count = 0; //ログ送信回数カウント
     private Process process_log; //logcat実行用
 
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        Log.d("StartSysytem_Log" ,"ReadLog0");
 
         try{
             Runtime.getRuntime().exec(new String[] { "logcat", "-c"}); //以前のログをクリア
-            process_log = Runtime.getRuntime().exec(new String[] { "logcat", "-v", "time"}); //ログを保存するためのlogcatコマンドを実行
         }catch(Exception e){
             e.printStackTrace();
         }
-
-        //ログ保存用インスタンス生成
-        log = new StringBuilder();
 
         Log.d("LifeCycleCheck", "onCreate()が呼び出されました");
 
@@ -139,17 +149,16 @@ public class MainActivity extends ActionMenuActivity{
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
         attention_info = findViewById(R.id.attention_info);
-        progressBar = findViewById(R.id.progressBar);
+        //progressBar = findViewById(R.id.progressBar);
 
         // 情報提示中の中断通知用Handlerを生成
         mainHandler = new Handler();
         // 撮影スレッドの停止用Handlerを生成
         shotHandler = new Handler();
-
         // 結果取得用スレッドの停止用フラグを生成
         getResultHandler = new Handler();
-
-        picture_count = 0;
+        // ログ保存スレッドの停止用Handlerを生成
+        saveLogHandler = new Handler();
 
         nowLevel = 0;
 
@@ -182,23 +191,26 @@ public class MainActivity extends ActionMenuActivity{
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReadySSL.execute(new Param(url_0));
 
-
         //非SSL用
         /*
         uploadTaskReady = new UploadTaskReady();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReady.execute(new Param(url_0));
         */
+
         captureButton = findViewById(R.id.button_capture);
 
-        //注意喚起情報変更用関数(骨髄穿刺)
+        //注意喚起情報変更用インスタンス生成(骨髄穿刺)
         kotuzui = new SetInfo_kotuzui(MainActivity.this);
-        //注意喚起情報変更用関数(腰椎穿刺)
+        //注意喚起情報変更用インスタンス生成(腰椎穿刺)
         youtui = new SetInfo_youtui(MainActivity.this);
-        //注意喚起情報変更用関数(中心静脈カテーテル挿入)
+        //注意喚起情報変更用インスタンス生成(中心静脈カテーテル挿入)
         catheter = new SetInfo_catheter(MainActivity.this);
-        //注意喚起情報変更用関数(血液培養)
+        //注意喚起情報変更用インスタンス生成(血液培養)
         blood = new SetInfo_blood(MainActivity.this);
+
+        //ログ保存用インスタンス生成
+        saveLog = new SaveLog(this);
 
         //設定画面に遷移
         Button setting_btn = findViewById(R.id.setting_button);
@@ -220,13 +232,22 @@ public class MainActivity extends ActionMenuActivity{
                @Override
                public void onClick(View v) {
                    Log.d("EndButton","終了ボタンが押されました");
+                   try{
+                       stopInfo();
+                       Log.d("情報提示スレッド停止 : ","成功");
+                   }catch(Exception e){
+                       Log.d("情報提示スレッド停止エラー",e.toString());
+                   }
                    moveTaskToBack(true); //アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
-
                    getRunnnig = false;
                    getResultTaskSSL.removeListener(g_createListenerSSL());
                    //getResultTask.removeListener(g_createListener());
-
-                   finish(); //アプリケーション終了 再開時はonCreate()から
+                   try {
+                       Thread.sleep(5000); // 5秒待機
+                   }catch (Exception e){
+                       Log.d("アプリ終了待機中エラー",e.toString());
+                   }
+                   finish(); //アプリケーション終了 再開時はonCreate()から(ログ送信のために5秒待機後に完全終了)
                }
             }
         );
@@ -240,7 +261,8 @@ public class MainActivity extends ActionMenuActivity{
                         public void onClick(View v) {
                             Log.d("PushCameraButton", "カメラ撮影開始" );
                             ShotFlag = true;
-                            progressBar.setVisibility(View.VISIBLE);
+                            //progressBar.setVisibility(View.VISIBLE);
+                            iryo_name.setText(getResources().getString(R.string.iryo_now_recognition));
                             captureButton.setVisibility(View.INVISIBLE);
                             new Thread(new Runnable() {
                                 @Override
@@ -255,7 +277,7 @@ public class MainActivity extends ActionMenuActivity{
                             }).start();
                             new Thread(new Runnable() {
                                 @Override
-                                public void run() {
+                                public void run() {//結果取得スレッド
                                     getResultHandler.post(getResultRun = new Runnable(){
                                         @Override
                                         public void run() {
@@ -265,6 +287,9 @@ public class MainActivity extends ActionMenuActivity{
                                     });
                                 }
                             }).start();
+
+                            saveLog.start();//ログ保存開始
+
                         }
                     });
         }else if(!checkCameraHardware(this)){
@@ -292,7 +317,7 @@ public class MainActivity extends ActionMenuActivity{
             FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
             preview.addView(mPreview);
 
-            progressBar.setVisibility(View.INVISIBLE);
+            //progressBar.setVisibility(View.INVISIBLE);
             captureButton.setVisibility(View.VISIBLE);
 
             ShotFlag = false;
@@ -306,14 +331,10 @@ public class MainActivity extends ActionMenuActivity{
         if(ShotFlag) {
             shotHandler.removeCallbacks(shotRun);
             getResultHandler.removeCallbacks(shotRun);
+            //saveLogHandler.removeCallbacks(saveLogtRun);
             mPreview.surfaceDestroyed(mPreview.returnHolder());
         }
     }
-
-    public void setPictureCount(int num){
-        //this.picture_count = num;
-    }
-
 
 
     protected void onActivityResult( int requestCode, int resultCode, Intent intent) {
@@ -354,13 +375,22 @@ public class MainActivity extends ActionMenuActivity{
             public void onPictureTaken(byte[] data, Camera camera) {
                 ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
                 theImage = BitmapFactory.decodeStream(imageInput);
+                Log.d("撮影1回完了","　");
 
                 uploadTaskSSL = new UploadTaskSSL();
                 uploadTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
 
                 //uploadTask = new UploadTask();
                 //uploadTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
-
+                new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            Thread.sleep(100); // 0.1秒待機
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                });
                 mCamera.startPreview();//SurfaceViewの描画更新
                 ContinueShot();//次の撮影
             }
@@ -458,32 +488,12 @@ public class MainActivity extends ActionMenuActivity{
                                         } else {
                                             //新しい認識結果が現状最も多い結果と同回数
                                             Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                            iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                            iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
                                             alert_level.setTextColor(getResources().getColor(R.color.hud_white));
                                             alert_level.setText(getResources().getString(R.string.alertLevel_default));
                                             attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                            attention_info.setText("再認識中");
-                                            if (now_info.equals("kotuzui")) {
-                                                //情報提示用マルチスレッドを中断
-                                                kotuzui.stopThread();
-                                                //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
-                                                kotuzui = new SetInfo_kotuzui(MainActivity.this);
-                                            } else if (now_info.equals("youtui")) {
-                                                //情報提示用マルチスレッドを中断
-                                                youtui.stopThread();
-                                                //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
-                                                SetInfo_youtui youtui;
-                                            } else if (now_info.equals("catheter")) {
-                                                //情報提示用マルチスレッドを中断
-                                                catheter.stopThread();
-                                                //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
-                                                SetInfo_catheter catheter;
-                                            } else if (now_info.equals("blood")) {
-                                                //情報提示用マルチスレッドを中断
-                                                blood.stopThread();
-                                                //血液培養の注意喚起情報を提示するクラスのインスタンス
-                                                SetInfo_blood blood;
-                                            }
+                                            attention_info.setText("");
+                                            stopInfo();
                                             break;
                                         }
                                     } else {
@@ -580,32 +590,12 @@ public class MainActivity extends ActionMenuActivity{
                                         } else {
                                             //新しい認識結果が現状最も多い結果と同回数
                                             Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                            iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+                                            iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
                                             alert_level.setTextColor(getResources().getColor(R.color.hud_white));
                                             alert_level.setText(getResources().getString(R.string.alertLevel_default));
                                             attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                            attention_info.setText("再認識中");
-                                            if (now_info.equals("kotuzui")) {
-                                                //情報提示用マルチスレッドを中断
-                                                kotuzui.stopThread();
-                                                //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
-                                                kotuzui = new SetInfo_kotuzui(MainActivity.this);
-                                            } else if (now_info.equals("youtui")) {
-                                                //情報提示用マルチスレッドを中断
-                                                youtui.stopThread();
-                                                //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
-                                                SetInfo_youtui youtui;
-                                            } else if (now_info.equals("catheter")) {
-                                                //情報提示用マルチスレッドを中断
-                                                catheter.stopThread();
-                                                //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
-                                                SetInfo_catheter catheter;
-                                            } else if (now_info.equals("blood")) {
-                                                //情報提示用マルチスレッドを中断
-                                                blood.stopThread();
-                                                //血液培養の注意喚起情報を提示するクラスのインスタンス
-                                                SetInfo_blood blood;
-                                            }
+                                            attention_info.setText("");
+                                            stopInfo();
                                             break;
                                         }
                                     } else {
@@ -630,34 +620,55 @@ public class MainActivity extends ActionMenuActivity{
         //骨髄穿刺が結果として返された場合
         if(result.contains("kotuzui")){
             //ProgressBarを不可視
-            progressBar.setVisibility(View.INVISIBLE);
+            //progressBar.setVisibility(View.INVISIBLE);
             kotuzui.run(nowLevel,mainHandler);
         }
 
         //腰椎穿刺が結果として返された場合
         if(result.contains("youtui")){
             //ProgressBarを不可視
-            progressBar.setVisibility(View.INVISIBLE);
+            //progressBar.setVisibility(View.INVISIBLE);
             youtui.run(nowLevel,mainHandler);
         }
 
         //中心静脈カテーテル挿入が結果として返された場合
         if(result.contains("catheter")){
             //ProgressBarを不可視
-            progressBar.setVisibility(View.INVISIBLE);
+            //progressBar.setVisibility(View.INVISIBLE);
             catheter.run(nowLevel,mainHandler);
         }
 
         //血液培養ボトルが結果として返された場合
         if(result.contains("blood")){
             //ProgressBarを不可視
-            progressBar.setVisibility(View.INVISIBLE);
+            //progressBar.setVisibility(View.INVISIBLE);
             blood.run(nowLevel,mainHandler);
         }
     }
 
-    public int getPictureCount(){
-        return picture_count;
+    //情報提示プログラム停止用関数
+    public void stopInfo(){
+        if (now_info.equals("kotuzui")) {
+            //情報提示用マルチスレッドを中断
+            kotuzui.stopThread();
+            //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
+            kotuzui = new SetInfo_kotuzui(MainActivity.this);
+        } else if (now_info.equals("youtui")) {
+            //情報提示用マルチスレッドを中断
+            youtui.stopThread();
+            //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
+            youtui = new SetInfo_youtui(MainActivity.this);
+        } else if (now_info.equals("catheter")) {
+            //情報提示用マルチスレッドを中断
+            catheter.stopThread();
+            //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
+            catheter = new SetInfo_catheter(MainActivity.this);
+        } else if (now_info.equals("blood")) {
+            //情報提示用マルチスレッドを中断
+            blood.stopThread();
+            //血液培養の注意喚起情報を提示するクラスのインスタンス
+            blood = new SetInfo_blood(MainActivity.this);
+        }
     }
 
 
@@ -676,38 +687,5 @@ public class MainActivity extends ActionMenuActivity{
     protected void onDestroy() {
         super.onDestroy();
         Log.d("LifeCycleCheck", "End Application");
-
-        BufferedReader reader = null;
-        Log.d("Log : ", "Start Write Logs");
-        try {
-            reader = new BufferedReader(new InputStreamReader(process_log.getInputStream()));
-            while ((log_line = reader.readLine()) != null) {
-                if(!log_line.contains("Start Write Logs")){
-                    String temp = log_line + "\r\n";
-                    log.append(temp);
-                }else{
-                    break;
-                }
-            }
-            Log.d("Log : ", "ログの書き出し終了");
-        }catch (IOException e) {
-            Log.d("Error", e.getMessage());
-        }
-        finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    Log.d("Error", e.getMessage());
-                }
-            }
-        }
-
-        uploadLogsSSL = new UploadLogsSSL();
-        uploadLogsSSL.execute(new Param(url_log, log.toString()));
-        /*
-        uploadLogs = new UploadLogs();
-        uploadLogs.execute(new Param(url_log, log.toString()));
-        */
     }
 }
