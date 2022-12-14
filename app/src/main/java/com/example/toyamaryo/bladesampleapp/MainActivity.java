@@ -59,11 +59,6 @@ public class MainActivity extends ActionMenuActivity{
     private GetResultTaskSSL getResultTaskSSL;
     private GetResultTask getResultTask;
 
-    //アプリ内ログをサーバに保存する用クラスのインスタンス
-    private UploadLogsSSL uploadLogsSSL;
-    private UploadLogs uploadLogs;
-
-
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
@@ -80,25 +75,23 @@ public class MainActivity extends ActionMenuActivity{
     public Handler getResultHandler;
     public Runnable getResultRun;
     public Handler saveLogHandler;
-    //public Runnable saveLogtRun;
 
     private boolean ShotFlag = false;//撮影を開始しているか
     private boolean getRunnnig = false;//認識結果取得実行用フラグ
+    private boolean displayInfoFlag = false;
 
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
     private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
     private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/getImage.php";
     private String url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/returnRecognitionResult.php";
-    private String url_log = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/save_log.php";
+
 
     //仲介用phpのアドレス
     /*
     private String url_0 = "http://172.30.184.57/~toyama/ready.php";
     private String url = "http://172.30.184.57/~toyama/getImage.php";
     private String url_get = "http://172.30.184.57/~toyama/returnRecognitionResult.php";
-    private String url_log = "http://172.30.184.57/~toyama/save_log.php";
     */
-
 
     private int nowLevel;
 
@@ -127,15 +120,10 @@ public class MainActivity extends ActionMenuActivity{
     //ログ保存用クラスのインスタンス
     SaveLog saveLog;
 
-    StringBuilder log; //ログ保存用
-    boolean logFlag = false;
-    private int log_count = 0; //ログ送信回数カウント
-    private Process process_log; //logcat実行用
-
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d("StartSysytem_Log" ,"ReadLog0");
+        Log.d("StartSysytem_Log" ,"ReadLog");
 
         try{
             Runtime.getRuntime().exec(new String[] { "logcat", "-c"}); //以前のログをクリア
@@ -187,9 +175,11 @@ public class MainActivity extends ActionMenuActivity{
 
         //SSL用
         //サーバに一時保存されている画像(9枚以下の時)を削除
+
         uploadTaskReadySSL = new UploadTaskReadySSL();
         Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
         uploadTaskReadySSL.execute(new Param(url_0));
+
 
         //非SSL用
         /*
@@ -270,7 +260,7 @@ public class MainActivity extends ActionMenuActivity{
                                     shotHandler.post(shotRun = new Runnable(){
                                         @Override
                                         public void run() {
-                                            ContinueShot();
+                                            //ContinueShot();
                                         }
                                     });
                                 }
@@ -382,6 +372,7 @@ public class MainActivity extends ActionMenuActivity{
 
                 //uploadTask = new UploadTask();
                 //uploadTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
+
                 new Thread(new Runnable() {
                     public void run() {
                         try {
@@ -416,97 +407,57 @@ public class MainActivity extends ActionMenuActivity{
         return new GetResultTaskSSL.Listener() {
             @Override
             public void onSuccess(String result){
-                if(getRunnnig) {
-                    if(!result.equals("null")) {
-                        Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
 
-                        if (return_result.get(result) == null) {
-                            //初の認識結果なら１を追加
+                if(result.equals("null")){
+                    Log.d("SystemCheck", "認識結果が返ってきました" + result);
+                }
+
+                if(getRunnnig && !result.equals("null")) {//撮影中は取得
+                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+
+                    //医療機器は認識されたが医療行為は特定できず
+                    if (return_result.size() == 0 && result.equals("unknown")) {
+                        Log.d("認識中", "医療機器は認識されたが医療行為特定には情報不足");
+                    }else{//何らかの医療行為が特定された場合
+                        if (return_result.get(result) == null) { //初の認識結果なら１を追加
                             return_result.put(result, 1);
-                        } else {
-                            //既に追加されてる結果は＋1
+                        }else{ //既に追加されてる結果は＋1
                             return_result.put(result, return_result.get(result) + 1);
                         }
-
-                        //Log.d("result", "認識結果:" + result);
-                        Log.d("result", "認識結果数:" + return_result.size());
-                        Log.d("return_result", "認識結果蓄積状況:" + return_result);
-
-                        //1回目の認識結果が来た時の処理
-                        if (return_result.size() == 1) {
-                            if (result.contains("no_results")) {
-                                Log.d("認識失敗", "認識失敗のため再度認識を行います");
-                            } else {
-                                if (return_result.get(result) == 1) {
-                                    //no_results以外の結果が初めて出た場合
-                                    Log.d("情報提示1回目", "認識された結果の情報を提示します");
-                                    now_info = result;
-                                    setInfo(result);
-                                } else { //システム開始から同じ認識結果が2回出た場合
-                                    Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                        if(return_result.size() == 0){
+                            Log.d("情報提示", "特定された医療行為の情報を提示します(初特定)");
+                            now_info = result;
+                            setInfo(now_info);
+                            displayInfoFlag = true;
+                        }else{
+                            if(result.equals(now_info)){ //提示中の医療行為が再度認識されている場合
+                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                            }else if(result.equals("unknown")) {
+                                if(displayInfoFlag) {
+                                    Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                    iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
+                                    alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                    alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                    attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                    attention_info.setText("");
+                                    stopInfo();
+                                    now_info = null;
+                                    displayInfoFlag = false;
                                 }
-                            }
-                        }
-
-                        //認識2回目以降の処理，提示する情報を選択
-                        if (return_result.size() > 1) {
-                            if (result.contains("no_results")) {
-                                Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
-                            } else if (return_result.size() == 2 && now_info == null) {
-                                //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
-                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                            }else{ //医療行為を取得した処理(再特定)
+                                Log.d("情報提示", "特定された医療行為の情報を提示します");
                                 now_info = result;
-                                setInfo(result);
-                            } else {
-                                //認識結果を降順にソート
-                                List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
-                                Collections.sort(list, new Comparator<Entry<String, Integer>>() {
-                                    //compareを使用して値を比較する
-                                    public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2) {
-                                        //降順
-                                        return obj2.getValue().compareTo(obj1.getValue());
-                                    }
-                                });
-
-                                for (Entry<String, Integer> entry : list) {
-                                    if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
-                                        if (entry.getValue() > return_result.get(result)) {
-                                            Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
-                                            break;
-                                        } else if (entry.getValue() < return_result.get(result)) {
-                                            //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
-                                            if (result.contains(now_info)) {
-                                                //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
-                                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
-                                                break;
-                                            } else {
-                                                Log.d("情報変更", "新しい結果が適切な情報と判断");
-                                                now_info = result;
-                                                setInfo(result);
-                                                break;
-                                            }
-                                        } else {
-                                            //新しい認識結果が現状最も多い結果と同回数
-                                            Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                            iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
-                                            alert_level.setTextColor(getResources().getColor(R.color.hud_white));
-                                            alert_level.setText(getResources().getString(R.string.alertLevel_default));
-                                            attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                            attention_info.setText("");
-                                            stopInfo();
-                                            break;
-                                        }
-                                    } else {
-                                        Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
-                                    }
-                                }
-
+                                setInfo(now_info);
+                                displayInfoFlag = true;
                             }
-
                         }
                     }
-                    GetResult();
+
+                    Log.d("result", "認識結果数:" + return_result.size());
+                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
                 }
+                GetResult();
             }
         };
     }
@@ -518,97 +469,56 @@ public class MainActivity extends ActionMenuActivity{
         return new GetResultTask.Listener() {
             @Override
             public void onSuccess(String result){
-                if(getRunnnig) {
-                    if(!result.equals("null")) {
-                        Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+                if(result.equals("null")){
+                    Log.d("SystemCheck", "認識結果が返ってきました" + result);
+                }
 
-                        if (return_result.get(result) == null) {
-                            //初の認識結果なら１を追加
+                if(getRunnnig && !result.equals("null")) {//撮影中は取得
+                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+
+                    //医療機器は認識されたが医療行為は特定できず
+                    if (return_result.size() == 0 && result.equals("unknown")) {
+                        Log.d("認識中", "医療機器は認識されたが医療行為特定には情報不足");
+                    }else{//何らかの医療行為が特定された場合
+                        if (return_result.get(result) == null) { //初の認識結果なら１を追加
                             return_result.put(result, 1);
-                        } else {
-                            //既に追加されてる結果は＋1
+                        }else{ //既に追加されてる結果は＋1
                             return_result.put(result, return_result.get(result) + 1);
                         }
-
-                        //Log.d("result", "認識結果:" + result);
-                        Log.d("result", "認識結果数:" + return_result.size());
-                        Log.d("return_result", "認識結果蓄積状況:" + return_result);
-
-                        //1回目の認識結果が来た時の処理
-                        if (return_result.size() == 1) {
-                            if (result.contains("no_results")) {
-                                Log.d("認識失敗", "認識失敗のため再度認識を行います");
-                            } else {
-                                if (return_result.get(result) == 1) {
-                                    //no_results以外の結果が初めて出た場合
-                                    Log.d("情報提示1回目", "認識された結果の情報を提示します");
-                                    now_info = result;
-                                    setInfo(result);
-                                } else { //システム開始から同じ認識結果が2回出た場合
-                                    Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                        if(return_result.size() == 0){
+                            Log.d("情報提示", "特定された医療行為の情報を提示します(初特定)");
+                            now_info = result;
+                            setInfo(now_info);
+                            displayInfoFlag = true;
+                        }else{
+                            if(result.equals(now_info)){ //提示中の医療行為が再度認識されている場合
+                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                            }else if(result.equals("unknown")) {
+                                if(displayInfoFlag) {
+                                    Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
+                                    iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
+                                    alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                    alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                    attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                    attention_info.setText("");
+                                    stopInfo();
+                                    now_info = null;
+                                    displayInfoFlag = false;
                                 }
-                            }
-                        }
-
-                        //認識2回目以降の処理，提示する情報を選択
-                        if (return_result.size() > 1) {
-                            if (result.contains("no_results")) {
-                                Log.d("no_results", "認識結果がno_resultsのため情報修正無し");
-                            } else if (return_result.size() == 2 && now_info == null) {
-                                //1~*回目の認識結果がno_resultsで，初めて別の認識結果が出た場合の処理
-                                Log.d("情報提示1回目", "認識された結果の情報を提示します");
+                            }else{ //医療行為を取得した処理(再特定)
+                                Log.d("情報提示", "特定された医療行為の情報を提示します");
                                 now_info = result;
-                                setInfo(result);
-                            } else {
-                                //認識結果を降順にソート
-                                List<Entry<String, Integer>> list = new ArrayList<>(return_result.entrySet());
-                                Collections.sort(list, new Comparator<Entry<String, Integer>>() {
-                                    //compareを使用して値を比較する
-                                    public int compare(Entry<String, Integer> obj1, Entry<String, Integer> obj2) {
-                                        //降順
-                                        return obj2.getValue().compareTo(obj1.getValue());
-                                    }
-                                });
-
-                                for (Entry<String, Integer> entry : list) {
-                                    if (!entry.getKey().equals("no_results") && !entry.getKey().equals(result)) {
-                                        if (entry.getValue() > return_result.get(result)) {
-                                            Log.d("情報変更無し", "認識結果より情報変更の必要なしと判断");
-                                            break;
-                                        } else if (entry.getValue() < return_result.get(result)) {
-                                            //新しい結果以外の蓄積されている結果と比べて回数が多い場合(降順にソートしているので1番目との比較結果で判断)
-                                            if (result.contains(now_info)) {
-                                                //最新の認識結果が最も多く認識された結果のため更新(既に提示されているならそのまま)
-                                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
-                                                break;
-                                            } else {
-                                                Log.d("情報変更", "新しい結果が適切な情報と判断");
-                                                now_info = result;
-                                                setInfo(result);
-                                                break;
-                                            }
-                                        } else {
-                                            //新しい認識結果が現状最も多い結果と同回数
-                                            Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                            iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
-                                            alert_level.setTextColor(getResources().getColor(R.color.hud_white));
-                                            alert_level.setText(getResources().getString(R.string.alertLevel_default));
-                                            attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                            attention_info.setText("");
-                                            stopInfo();
-                                            break;
-                                        }
-                                    } else {
-                                        Log.d("比較ループ続行", "比較対象がno_resultもしくは同じ結果のため他の結果と比較");
-                                    }
-                                }
-
+                                setInfo(now_info);
+                                displayInfoFlag = true;
                             }
-
                         }
                     }
-                    GetResult();
+
+                    Log.d("result", "認識結果数:" + return_result.size());
+                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
+
                 }
+                GetResult();
             }
         };
     }
