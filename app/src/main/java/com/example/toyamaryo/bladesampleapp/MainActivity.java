@@ -49,11 +49,9 @@ public class MainActivity extends ActionMenuActivity{
 
     //SSL認証サーバとの接続用
     private UploadTaskSSL uploadTaskSSL;
-    private UploadTaskReadySSL uploadTaskReadySSL;
 
     //非SSL認証サーバとの接続用
     private UploadTask uploadTask;
-    private UploadTaskReady uploadTaskReady;
 
     //認識結果確認用非同期処理クラスのインスタンス
     private GetResultTaskSSL getResultTaskSSL;
@@ -62,7 +60,6 @@ public class MainActivity extends ActionMenuActivity{
     public TextView iryo_name;
     public TextView alert_level;
     public TextView attention_info;
-    public ProgressBar progressBar;
 
     private Camera mCamera;
     private CameraPreview mPreview;
@@ -81,14 +78,12 @@ public class MainActivity extends ActionMenuActivity{
     private boolean displayInfoFlag = false;
 
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
-    private String url_0 = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/ready.php";
-    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/getImage.php";
-    private String url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/returnRecognitionResult.php";
+    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/getImage.php";
+    private String url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/returnRecognitionResult.php";
 
 
     //仲介用phpのアドレス
     /*
-    private String url_0 = "http://172.30.184.57/~toyama/ready.php";
     private String url = "http://172.30.184.57/~toyama/getImage.php";
     private String url_get = "http://172.30.184.57/~toyama/returnRecognitionResult.php";
     */
@@ -173,20 +168,6 @@ public class MainActivity extends ActionMenuActivity{
             attention_info.setTextColor(getResources().getColor(R.color.hud_red));
         }
 
-        //SSL用
-        //サーバに一時保存されている画像(9枚以下の時)を削除
-
-        uploadTaskReadySSL = new UploadTaskReadySSL();
-        Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
-        uploadTaskReadySSL.execute(new Param(url_0));
-
-
-        //非SSL用
-        /*
-        uploadTaskReady = new UploadTaskReady();
-        Log.d("サーバ内不要画像をクリーン", "サーバ内にある不要な画像データを削除" );
-        uploadTaskReady.execute(new Param(url_0));
-        */
 
         captureButton = findViewById(R.id.button_capture);
 
@@ -260,7 +241,7 @@ public class MainActivity extends ActionMenuActivity{
                                     shotHandler.post(shotRun = new Runnable(){
                                         @Override
                                         public void run() {
-                                            //ContinueShot();
+                                            ContinueShot();
                                         }
                                     });
                                 }
@@ -523,6 +504,7 @@ public class MainActivity extends ActionMenuActivity{
         };
     }
     //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTP接続時使用 現地用――――――――――――――――――――――――――――――――――――――――――――――――――
+
 
     //情報提示プログラム実行用関数
     public void setInfo(String result){
