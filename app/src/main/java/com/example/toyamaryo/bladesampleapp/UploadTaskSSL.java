@@ -4,28 +4,20 @@ package com.example.toyamaryo.bladesampleapp;
 import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.util.Base64;
-import android.util.Log;
-
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-
+import java.net.URL;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import javax.net.ssl.HttpsURLConnection;
-
-import static android.content.ContentValues.TAG;
 
 public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
@@ -40,8 +32,6 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
 
         HttpsURLConnection httpConn = null;
         StringBuilder sb = new StringBuilder();
-
-
 
         try{
             //BitmapをBase64にエンコード
@@ -104,7 +94,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
                 });
 
 
-                //ここでsetSSLSocketFactoryを実行
+                //setSSLSocketFactoryを実行
                 httpConn.setSSLSocketFactory(sslcontext.getSocketFactory());
             }catch(Exception e){
                 e.printStackTrace();
@@ -128,7 +118,7 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
                 // POST送信エラー
                 e.printStackTrace();
             }
-            int status = httpConn.getResponseCode();
+            //int status = httpConn.getResponseCode();
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -148,6 +138,6 @@ public class UploadTaskSSL extends AsyncTask<Param, Void, String> {
     }
 
     interface Listener {
-        void onSuccess(String result);
+        void onSuccess();
     }
 }
