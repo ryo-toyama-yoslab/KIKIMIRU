@@ -23,7 +23,6 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
     public CameraPreview(Context context, Camera camera) {
         super(context);
-        Log.d("System Log", " : CameraPreviewが呼ばれました");
         mCamera = camera;
         mHolder = getHolder();
         mHolder.addCallback(this);
@@ -46,9 +45,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             } catch (IOException e) {
                 Log.d(TAG, "Error setting camera preview: " + e.getMessage());
             }
-
         }
-
     }
 
 
@@ -70,7 +67,6 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
         // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
-        Log.d("System Log", " : surfaceChangedが呼ばれました");
         //プレビュースタート（Changedは最初にも1度は呼ばれる）
         if(mCamera != null) {
             Camera.Parameters params = mCamera.getParameters();
@@ -85,11 +81,10 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             }
 
             // stop preview before making changes
-
             try {
                 mCamera.stopPreview();
             } catch (Exception e) {
-                // ignore: tried to stop a non-existent preview
+                Log.d(TAG, "Error stopping camera preview: " + e.getMessage());
             }
 
             try {
