@@ -1,7 +1,6 @@
 package com.example.toyamaryo.bladesampleapp;
 
 import android.os.AsyncTask;
-import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,7 +44,7 @@ public class GetResultTaskSSL extends AsyncTask<Param, Void, String>  {
             // HttpURLConnection
             httpConn = (HttpsURLConnection) url.openConnection();
 
-            // request POST
+            // request GET
             httpConn.setRequestMethod("GET");
 
             // no Redirects
