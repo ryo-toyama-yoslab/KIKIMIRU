@@ -11,7 +11,9 @@ public class SetInfo_blood {
     private Activity mActivity;
     // Sound設定
     private SoundPlayer soundPlayer;
-    private int nextInfoLevel;
+    private int experimentMode;
+    private double nextInfoPerLevel;
+    private boolean exitThread;
 
     public Handler handler;
 
@@ -20,11 +22,29 @@ public class SetInfo_blood {
         soundPlayer = new SoundPlayer(mActivity);
     }
 
-    public void run(int nowLevel, Handler handler){
-        this.handler = handler;
+    public void run(int nowLevel, int experimentMode, Handler handler){
+        /*
+            nowLevel
+             1 : 手技熟練度 低
+             2 : 手技熟練度 中
+             3 : 手技熟練度 高
 
+            experimentMode
+             1 : 機械音通知
+             2 : 音声通知
+        */
+
+        this.experimentMode = experimentMode;
+        this.handler = handler;
         Log.d("マルチスレッドに移行", "血液培養の注意喚起情報を提示するマルチスレッドに移行");
-        setInfo(3);
+
+        if(nowLevel == 1){
+            setInfo(1);
+        }else if(nowLevel == 2){
+            setInfo(2);
+        }else if(nowLevel == 3){
+            setInfo(3);
+        }
     }
 
     //現状では血液培養の情報が1つだけのためcontrolInfo()は未使用
@@ -38,7 +58,7 @@ public class SetInfo_blood {
                         @Override
                         public void run() {
                             try {
-                                setInfo(nextInfoLevel);
+                                setInfo(nextInfoPerLevel);
                             }catch (java.lang.NullPointerException e){
                                 Log.d("血液培養マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
                                 //e.printStackTrace();
@@ -52,12 +72,16 @@ public class SetInfo_blood {
         }).start();
     }
 
-    private void setInfo(int level){
+    private void setInfo(double level){
         if(level == 3) {
             Log.d("血液培養_レベル3", "血液培養レベル3の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel3Sound();
+            if(experimentMode == 1){
+                soundPlayer.playMechanicalSound();
+            }else if(experimentMode == 2){ // 音声通知
+                soundPlayer.playDisplayVoiceSound();
+            }
 
             //医療行為名を骨髄穿刺に変更
             ((TextView) mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_KetuekiBaiyou);
@@ -69,7 +93,7 @@ public class SetInfo_blood {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView) mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView) mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level3));
-            nextInfoLevel = 0; //次に提示する注意喚起情報のレベルを設定
+            nextInfoPerLevel = 0; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
         }else if (level == 0) {
             Log.d("血液培養_終了", "血液培養の情報を提示を終了");

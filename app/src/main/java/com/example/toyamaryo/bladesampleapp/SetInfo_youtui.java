@@ -11,7 +11,8 @@ public class SetInfo_youtui {
     private Activity mActivity;
     // Sound設定
     private SoundPlayer soundPlayer;
-    private int nextInfoLevel;
+    private int experimentMode;
+    private double nextInfoPerLevel;
     private boolean exitThread;
 
     public Handler handler;
@@ -22,15 +23,24 @@ public class SetInfo_youtui {
         exitThread = false;
     }
 
-    public void run(int nowLevel, Handler handler){
-        this.handler = handler;
+    public void run(int nowLevel, int experimentMode, Handler handler){
+        /*
+            nowLevel
+             1 : 手技熟練度 低
+             2 : 手技熟練度 中
+             3 : 手技熟練度 高
 
+            experimentMode
+             1 : 機械音通知
+             2 : 音声通知
+        */
+        this.experimentMode = experimentMode;
+        this.handler = handler;
         Log.d("マルチスレッドに移行", "腰椎穿刺の注意喚起情報を提示するマルチスレッドに移行");
+
         if(nowLevel == 1){
             setInfo(1);
-        }else if(nowLevel == 2){ //腰椎穿刺は設定したレベルが2以上ならアラートレベル3の情報のみを提示
-            setInfo(3);
-        }else if(nowLevel == 3){
+        }else if(nowLevel >= 2){ // 腰椎穿刺は設定したレベルが2以上ならアラートレベル3の情報のみを提示
             setInfo(3);
         }
     }
@@ -45,7 +55,7 @@ public class SetInfo_youtui {
                         @Override
                         public void run() {
                             try {
-                                setInfo(nextInfoLevel);
+                                setInfo(nextInfoPerLevel);
                             } catch (java.lang.NullPointerException e){
                                 Log.d("腰椎穿刺マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
                                     //e.printStackTrace();
@@ -60,12 +70,16 @@ public class SetInfo_youtui {
         }).start();
     }
 
-    private void setInfo(int level){
+    private void setInfo(double level){
         if(level == 1) {
             Log.d("腰椎穿刺_レベル1-1", "腰椎穿刺レベル1の1つ目の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel1Sound();
+            if(experimentMode == 1){
+                soundPlayer.playMechanicalSound();
+            }else if(experimentMode == 2){ // 音声通知
+                soundPlayer.playDisplayVoiceSound();
+            }
 
             //医療行為名を骨髄穿刺に変更
             ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_YoutuiSensi);
@@ -78,14 +92,14 @@ public class SetInfo_youtui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level1_1));
 
-            nextInfoLevel = 2; //次に提示する注意喚起情報のレベルを設定(アラートレベル1-2の情報に移るが仕様上2として設定)
+            nextInfoPerLevel = 1.1; //次に提示する注意喚起情報のレベルを設定(アラートレベル1-2の情報 level=1.1)
             controlInfo();
 
-        } else if (level == 2){
+        } else if (level == 1.1){
             Log.d("腰椎穿刺_レベル1-2", "腰椎穿刺レベル1の2つ目の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel1Sound();
+            soundPlayer.playMechanicalSound();
 
             //アラートレベルが1であることを提示，テキストからを変更
             ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_one);
@@ -95,14 +109,14 @@ public class SetInfo_youtui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level1_2));
 
-            nextInfoLevel = 3; //次に提示する注意喚起情報のレベルを設定
+            nextInfoPerLevel = 3; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
 
         }else if (level == 3){
             Log.d("腰椎穿刺_レベル3", "腰椎穿刺レベル3の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel3Sound();
+            soundPlayer.playMechanicalSound();
 
             //アラートレベルが3であることを提示，テキストからを変更
             ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_three);
@@ -112,7 +126,7 @@ public class SetInfo_youtui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level3));
             exitThread = true;
-            nextInfoLevel = 0; //次に提示する注意喚起情報のレベルを設定
+            nextInfoPerLevel = 0; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
         }else if (level == 0) {
             Log.d("腰椎穿刺_終了", "腰椎穿刺の情報を提示を終了");

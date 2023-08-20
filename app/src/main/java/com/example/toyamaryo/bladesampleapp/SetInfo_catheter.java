@@ -11,7 +11,9 @@ public class SetInfo_catheter {
     private Activity mActivity;
     // Sound設定
     private SoundPlayer soundPlayer;
-    private int nextInfoLevel;
+    private int experimentMode;
+    private double nextInfoPerLevel;
+    private boolean exitThread;
 
     public Handler handler;
 
@@ -20,15 +22,24 @@ public class SetInfo_catheter {
         soundPlayer = new SoundPlayer(mActivity);
     }
 
-    public void run(int nowLevel, Handler handler){
-        this.handler = handler;
+    public void run(int nowLevel, int experimentMode, Handler handler){
+        /*
+            nowLevel
+             1 : 手技熟練度 低
+             2 : 手技熟練度 中
+             3 : 手技熟練度 高
 
+            experimentMode
+             1 : 機械音通知
+             2 : 音声通知
+        */
+        this.experimentMode = experimentMode;
+        this.handler = handler;
         Log.d("マルチスレッドに移行", "中心静脈カテーテル挿入の注意喚起情報を提示するマルチスレッドに移行");
+
         if(nowLevel == 1){
             setInfo(1);
-        }else if(nowLevel == 2){ //中心静脈カテーテル挿入は設定したレベルが2以上ならアラートレベル3の情報のみを提示
-            setInfo(3);
-        }else if(nowLevel == 3){
+        }else if(nowLevel >= 2){ // 腰椎穿刺は設定したレベルが2以上ならアラートレベル3の情報のみを提示
             setInfo(3);
         }
     }
@@ -43,7 +54,7 @@ public class SetInfo_catheter {
                         @Override
                         public void run() {
                             try {
-                                setInfo(nextInfoLevel);
+                                setInfo(nextInfoPerLevel);
                             }catch (java.lang.NullPointerException e){
                                 Log.d("中心静脈カテーテル挿入マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
                                 //e.printStackTrace();
@@ -57,12 +68,16 @@ public class SetInfo_catheter {
         }).start();
     }
 
-    private void setInfo(int level){
+    private void setInfo(double level){
         if(level == 1) {
             Log.d("中心静脈カテーテル挿入_レベル1", "中心静脈カテーテル挿入レベル1の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel1Sound();
+            if(experimentMode == 1){
+                soundPlayer.playMechanicalSound();
+            }else if(experimentMode == 2){ // 音声通知
+                soundPlayer.playDisplayVoiceSound();
+            }
 
             //医療行為名を骨髄穿刺に変更
             ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_CatheterSounyuu);
@@ -75,14 +90,14 @@ public class SetInfo_catheter {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level1));
 
-            nextInfoLevel = 3; //次に提示する注意喚起情報のレベルを設定(アラートレベル1-2の情報に移るが仕様上2として設定)
+            nextInfoPerLevel = 3; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
 
         } else if (level == 3){
             Log.d("中心静脈カテーテル挿入_レベル3", "中心静脈カテーテル挿入レベル3の情報を提示");
 
             //スピーカー鳴音
-            soundPlayer.playLevel3Sound();
+            soundPlayer.playMechanicalSound();
 
             //アラートレベルが3であることを提示，テキストからを変更
             ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_three);
@@ -91,7 +106,7 @@ public class SetInfo_catheter {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level3));
-            nextInfoLevel = 0; //次に提示する注意喚起情報のレベルを設定
+            nextInfoPerLevel = 0; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
         }else if (level == 0) {
             Log.d("中心静脈カテーテル挿入_終了", "中心静脈カテーテル挿入の情報を提示を終了");

@@ -17,19 +17,31 @@ public class SetInfo_kotuzui {
     private Activity mActivity;
     // Sound設定
     private SoundPlayer soundPlayer;
-    private int nextInfoLevel;
-    public boolean running = true;
-    public Handler handler;
+    private int experimentMode;
+    private double nextInfoPerLevel;
+    private boolean running;
+    private Handler handler;
 
     //取得する日時のフォーマットを指定
     final DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 
-    public SetInfo_kotuzui(Activity activity){
+    SetInfo_kotuzui(Activity activity){
         mActivity = activity;
         soundPlayer = new SoundPlayer(mActivity);
     }
 
-    public void run(int nowLevel, Handler handler){
+    public void run(int nowLevel, int experimentMode, Handler handler){
+        /*
+            nowLevel
+             1 : 手技熟練度 低
+             2 : 手技熟練度 中
+             3 : 手技熟練度 高
+
+            experimentMode
+             1 : 機械音通知
+             2 : 音声通知
+        */
+        this.experimentMode = experimentMode;
         this.handler = handler;
         Log.d("マルチスレッドに移行", "骨髄穿刺の注意喚起情報を提示するマルチスレッドに移行");
         if(nowLevel == 1){
@@ -51,7 +63,7 @@ public class SetInfo_kotuzui {
                         @Override
                         public void run() {
                             try {
-                                setInfo(nextInfoLevel);
+                                setInfo(nextInfoPerLevel);
                             }catch (java.lang.NullPointerException e){
                                 Log.d("骨髄穿刺マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
                                 //e.printStackTrace();
@@ -65,7 +77,7 @@ public class SetInfo_kotuzui {
         }).start();
     }
 
-    private void setInfo(int level){
+    private void setInfo(double level){
         if(level == 1) {
             Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
             //日時を指定したフォーマットで取得
@@ -75,7 +87,11 @@ public class SetInfo_kotuzui {
             */
 
             //スピーカー鳴音
-           soundPlayer.playLevel1Sound();
+            if(experimentMode == 1){
+                soundPlayer.playMechanicalSound();
+            }else if(experimentMode == 2){ // 音声通知
+                soundPlayer.playDisplayVoiceSound();
+            }
 
             //医療行為名を骨髄穿刺に変更
             ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_Kotuzuisennsi);
@@ -88,7 +104,7 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level1));
 
-            nextInfoLevel = 2; //次に提示する注意喚起情報のレベルを設定
+            nextInfoPerLevel = 2; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
 
         } else if (level == 2){
@@ -100,7 +116,7 @@ public class SetInfo_kotuzui {
             */
 
             //スピーカー鳴音
-            soundPlayer.playLevel2Sound();
+            soundPlayer.playMechanicalSound();
 
             //アラートレベルが2であることを提示，テキストからを変更
             ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_two);
@@ -110,7 +126,7 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(Color.rgb(255,165,0));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level2));
 
-            nextInfoLevel = 3; //次に提示する注意喚起情報のレベルを設定
+            nextInfoPerLevel = 3; //次に提示する注意喚起情報のレベルを設定
             running = true;
             controlInfo();
 
@@ -123,7 +139,7 @@ public class SetInfo_kotuzui {
             */
 
             //スピーカー鳴音
-            soundPlayer.playLevel3Sound();
+            soundPlayer.playMechanicalSound();
 
             //アラートレベルが3であることを提示，テキストからを変更
             ((TextView)mActivity.findViewById(R.id.alert_level)).setText(R.string.alertLevel_three);
@@ -133,7 +149,7 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level3));
 
-            nextInfoLevel = 0; //情報提示終了フラグを設定
+            nextInfoPerLevel = 0; //情報提示終了フラグを設定
             running = true;
             controlInfo();
         }else if (level == 0) {
