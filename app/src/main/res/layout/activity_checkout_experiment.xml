@@ -95,7 +95,7 @@
                 android:layout_weight="2" />
 
             <Button
-                android:id="@+id/chekout_button"
+                android:id="@+id/setting_button"
                 android:layout_width="20dp"
                 android:layout_height="60dp"
                 android:layout_weight="1"
