@@ -21,7 +21,7 @@ public class CheckoutRunMode extends Activity {
         setContentView(R.layout.activity_checkout_experiment);
 
         Log.d("モード設定画面を提示","モード設定画面を提示します");
-        checkout_btn = findViewById(R.id.chekout_button);
+        checkout_btn = findViewById(R.id.setting_button);
         s1 = findViewById(R.id.run_mode_1_switch);
         s2 = findViewById(R.id.run_mode_2_switch);
 
