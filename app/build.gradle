@@ -23,5 +23,5 @@ dependencies {
     //Dependencies for Vuzix HUD Resorces and ActionMenu Libraries
     implementation 'com.vuzix:hud-actionmenu:1.3'
     implementation 'com.vuzix:hud-resources:1.2'
-    implementation "androidx.documentfile:documentfile:1.0.1"
+    implementation 'androidx.documentfile:documentfile:1.0.1'
 }
