@@ -12,38 +12,16 @@ import android.os.Bundle;
 
 import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
-import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends ActionMenuActivity{
 
@@ -67,40 +45,37 @@ public class MainActivity extends ActionMenuActivity{
     private Button captureButton;
 
     public Handler mainHandler;
+
     public Handler shotHandler;
     public Runnable shotRun;
     public Handler getResultHandler;
     public Runnable getResultRun;
     public Handler saveLogHandler;
+    public Runnable saveLogRun;
 
     private boolean ShotFlag = false;//撮影を開始しているか
-    private boolean getRunnnig = false;//認識結果取得実行用フラグ
+    private boolean getRunnig = false;//認識結果取得実行用フラグ
     private boolean displayInfoFlag = false;
 
+    // 実行環境の切り替え用 debug : 研究室, prod : 本番利用サーバ
+    public String run_mode = "debug";
+
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
-    private String url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/getImage.php";
-    private String url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/returnRecognitionResult.php";
+    private String url = "";
+    private String url_get = "";
 
-
-    //仲介用phpのアドレス
-    /*
-    private String url = "http://172.30.184.57/~toyama/getImage.php";
-    private String url_get = "http://172.30.184.57/~toyama/returnRecognitionResult.php";
-    */
-
-    private int nowLevel;
+    // 設定されている状態
+    private int experimentMode; // 実験手法切り替え　1 : 機械音通知, 2 : 音声通知
+    private int nowLevel; // 手技熟練度の設定
 
     // Sound設定
     public SoundPlayer soundPlayer;
 
-
     // サーバからの結果保存用HashMap
     public HashMap<String,Integer> return_result = new HashMap<>();
 
-
     //現在提示している情報
     public String now_info = null;
-
 
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
@@ -111,14 +86,13 @@ public class MainActivity extends ActionMenuActivity{
     //血液培養の注意喚起情報を提示するクラスのインスタンス
     SetInfo_blood blood;
 
-
     //ログ保存用クラスのインスタンス
     SaveLog saveLog;
 
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d("StartSysytem_Log" ,"ReadLog");
+        Log.d("StartSystem_Log" ,"ReadLog");
 
         try{
             Runtime.getRuntime().exec(new String[] { "logcat", "-c"}); //以前のログをクリア
@@ -126,13 +100,25 @@ public class MainActivity extends ActionMenuActivity{
             e.printStackTrace();
         }
 
-        Log.d("LifeCycleCheck", "onCreate()が呼び出されました");
+        // 実行環境のモード切替
+        switch(run_mode){
+            case "debug":
+                Log.d("SSL用URIを設定","debug mode ,so insert grapefruit url_get");
+                url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/getImage.php";
+                url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/returnRecognitionResult.php";
+                break;
+            case "prod":
+                url = "http://172.30.184.57/~toyama/getImage.php";
+                url_get = "http://172.30.184.57/~toyama/returnRecognitionResult.php";
+                break;
+        }
+
 
         setContentView(R.layout.activity_main);
+
         iryo_name = findViewById(R.id.iryou_name);
         alert_level = findViewById(R.id.alert_level);
         attention_info = findViewById(R.id.attention_info);
-        //progressBar = findViewById(R.id.progressBar);
 
         // 情報提示中の中断通知用Handlerを生成
         mainHandler = new Handler();
@@ -143,6 +129,10 @@ public class MainActivity extends ActionMenuActivity{
         // ログ保存スレッドの停止用Handlerを生成
         saveLogHandler = new Handler();
 
+        // ユーザの選択した経験量レベル
+        experimentMode = 0;
+
+        // ユーザの選択した経験量レベル
         nowLevel = 0;
 
         soundPlayer = new SoundPlayer(this);
@@ -153,13 +143,14 @@ public class MainActivity extends ActionMenuActivity{
         // カメラ映像のプレビュー作成(撮影に必要)
         mPreview = new CameraPreview(this, mCamera);
 
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        FrameLayout preview = (FrameLayout)findViewById(R.id.camera_preview);
         preview.addView(mPreview);
 
 
         // mPreviewのSurfaceHolder取得用
         //mHolder = mPreview.returnHolder();
 
+        // 手技経験量別の設定変更
         if(nowLevel == 1){
             attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
         }else if(nowLevel == 2){
@@ -189,10 +180,10 @@ public class MainActivity extends ActionMenuActivity{
                @Override
                public void onClick(View v) {
                    Log.d("postLevel",Integer.toString(nowLevel));
-                   Intent intent = new Intent(getApplication(), Setting.class);
-                   intent.putExtra("nowLevel",nowLevel);
+                   Intent setting_intent = new Intent(getApplication(), Setting.class);
+                   setting_intent.putExtra("nowLevel",nowLevel);
                    Log.d("SystemCheck","startActivityを行う前です");
-                   startActivityForResult(intent,1001);
+                   startActivityForResult(setting_intent,1002);
                    Log.d("SystemCheck","startActivityを行った後です");
                }
            }
@@ -208,16 +199,25 @@ public class MainActivity extends ActionMenuActivity{
                        Log.d("情報提示スレッド停止 : ","成功");
                    }catch(Exception e){
                        Log.d("情報提示スレッド停止エラー",e.toString());
+                       e.printStackTrace();
                    }
                    moveTaskToBack(true); //アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
-                   getRunnnig = false;
-                   getResultTaskSSL.removeListener(g_createListenerSSL());
-                   //getResultTask.removeListener(g_createListener());
+                   getRunnig = false;
+                   switch (run_mode) {
+                       case "debug":
+                           getResultTaskSSL.removeListener(g_createListenerSSL());
+                           break;
+                       case "prod":
+                           getResultTask.removeListener(g_createListener());
+                           break;
+                   }
                    try {
+                       Log.d("アプリが終了するまで5秒 : ","待機開始");
                        Thread.sleep(5000); // 5秒待機
                    }catch (Exception e){
                        Log.d("アプリ終了待機中エラー",e.toString());
                    }
+                   Log.d("アプリケーション KIKIMIRU: ","終了します");
                    finish(); //アプリケーション終了 再開時はonCreate()から(ログ送信のために5秒待機後に完全終了)
                }
             }
@@ -231,35 +231,46 @@ public class MainActivity extends ActionMenuActivity{
                         @Override
                         public void onClick(View v) {
                             Log.d("PushCameraButton", "カメラ撮影開始" );
-                            ShotFlag = true;
-                            //progressBar.setVisibility(View.VISIBLE);
                             iryo_name.setText(getResources().getString(R.string.iryo_now_recognition));
                             captureButton.setVisibility(View.INVISIBLE);
+
                             new Thread(new Runnable() {
                                 @Override
-                                public void run() {
+                                public void run() { // 画像撮影スレッド
                                     shotHandler.post(shotRun = new Runnable(){
                                         @Override
                                         public void run() {
+                                            ShotFlag = true;
                                             ContinueShot();
                                         }
                                     });
                                 }
                             }).start();
+
                             new Thread(new Runnable() {
                                 @Override
-                                public void run() {//結果取得スレッド
+                                public void run() { // 結果取得スレッド
                                     getResultHandler.post(getResultRun = new Runnable(){
                                         @Override
                                         public void run() {
-                                            getRunnnig = true;
+                                            getRunnig = true;
                                             GetResult();
                                         }
                                     });
                                 }
                             }).start();
 
-                            saveLog.start();//ログ保存開始
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() { // ログ保存スレッド
+                                    saveLogHandler.post(saveLogRun = new Runnable(){
+                                        @Override
+                                        public void run() {
+                                            saveLog.start(); // ログ保存開始
+                                        }
+                                    });
+                                }
+                            }).start();
 
                         }
                     });
@@ -267,10 +278,10 @@ public class MainActivity extends ActionMenuActivity{
             Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
-        //開始時(nowLevel=0)で設定画面に遷移
-        Intent intent = new Intent(getApplication(), Setting.class);
-        intent.putExtra("nowLevel",nowLevel);
-        startActivityForResult(intent,1001);
+        //開始時(experimentMode=0) 実行モード画面に遷移
+        Intent mode_intent = new Intent(getApplication(), CheckoutRunMode.class);
+        mode_intent.putExtra("experimentMode",experimentMode);
+        startActivityForResult(mode_intent,1001);
     }
 
 
@@ -288,7 +299,6 @@ public class MainActivity extends ActionMenuActivity{
             FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
             preview.addView(mPreview);
 
-            //progressBar.setVisibility(View.INVISIBLE);
             captureButton.setVisibility(View.VISIBLE);
 
             ShotFlag = false;
@@ -301,9 +311,10 @@ public class MainActivity extends ActionMenuActivity{
         Log.d("LifeCycle_MainActivity", "onPause");
         if(ShotFlag) {
             shotHandler.removeCallbacks(shotRun);
-            getResultHandler.removeCallbacks(shotRun);
-            //saveLogHandler.removeCallbacks(saveLogtRun);
+            getResultHandler.removeCallbacks(getResultRun);
             mPreview.surfaceDestroyed(mPreview.returnHolder());
+            saveLogHandler.removeCallbacks(saveLogRun);
+            saveLog.stopSaveLog();
         }
     }
 
@@ -311,6 +322,14 @@ public class MainActivity extends ActionMenuActivity{
     protected void onActivityResult( int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
         if(resultCode == RESULT_OK && requestCode == 1001 && intent != null) {
+            experimentMode = intent.getIntExtra("experimentMode",0);
+
+            //設定画面に遷移
+            Intent setting_intent = new Intent(getApplication(), Setting.class);
+            setting_intent.putExtra("nowLevel",nowLevel);
+            startActivityForResult(setting_intent,1002);
+        }
+        else if(resultCode == RESULT_OK && requestCode == 1002 && intent != null) {
             nowLevel = intent.getIntExtra("nowLevel",0);
         }
     }
@@ -327,7 +346,6 @@ public class MainActivity extends ActionMenuActivity{
         }
     }
 
-
     public static Camera getCameraInstance(){
         Camera c = null;
         try {
@@ -340,47 +358,64 @@ public class MainActivity extends ActionMenuActivity{
         return c; // returns null if camera is unavailable
     }
 
+
     public void ContinueShot(){
         mCamera.takePicture(null, null, new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] data, Camera camera) {
                 ByteArrayInputStream imageInput = new ByteArrayInputStream(data);
                 theImage = BitmapFactory.decodeStream(imageInput);
-                Log.d("撮影1回完了","　");
 
-                uploadTaskSSL = new UploadTaskSSL();
-                uploadTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
+                Log.d("撮影1回完了", "");
 
-                //uploadTask = new UploadTask();
-                //uploadTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
+                // 実行環境別でクラス変更
+                switch (run_mode) {
+                    case "debug":
+                        uploadTaskSSL = new UploadTaskSSL();
+                        uploadTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
+                        break;
+                    case "prod":
+                        uploadTask = new UploadTask();
+                        uploadTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
+                        break;
+                }
 
                 new Thread(new Runnable() {
                     public void run() {
                         try {
-                            Thread.sleep(100); // 0.1秒待機
+                            Thread.sleep(100); // 0.1秒待機　早すぎて撮影画像がブレる対策
                         }catch (Exception e){
                             e.printStackTrace();
                         }
                     }
                 });
+
                 mCamera.startPreview();//SurfaceViewの描画更新
+
                 ContinueShot();//次の撮影
             }
         });
+
     }
 
     public void GetResult(){
         //サーバの認識結果を確認する処理 GetResultTask
         //認識結果確認用インスタンスの生成
-        getResultTaskSSL = new GetResultTaskSSL();
-        getResultTaskSSL.setListener(g_createListenerSSL());
-        getResultTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get, theImage));
 
-        /*
-        getResultTask = new GetResultTask();
-        getResultTask.setListener(g_createListener());
-        getResultTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get, theImage));
-        */
+        // 実行環境別でクラス変更
+        switch(run_mode){
+            case "debug":
+                getResultTaskSSL = new GetResultTaskSSL();
+                getResultTaskSSL.setListener(g_createListenerSSL());
+                getResultTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get));
+                break;
+            case "prod":
+                getResultTask = new GetResultTask();
+                getResultTask.setListener(g_createListener());
+                getResultTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get));
+                break;
+        }
+
     }
 
     //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用 研究室用――――――――――――――――――――――――――――――――――――――――――――――――――
@@ -393,7 +428,7 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("SystemCheck", "認識結果が返ってきました" + result);
                 }
 
-                if(getRunnnig && !result.equals("null")) {//撮影中は取得
+                if(getRunnig && !result.equals("null")) {//撮影中は取得
                     Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
 
                     //医療機器は認識されたが医療行為は特定できず
@@ -438,6 +473,17 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("return_result", "認識結果蓄積状況:" + return_result);
 
                 }
+
+                new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            Thread.sleep(1000); // 1秒待機
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                });
+
                 GetResult();
             }
         };
@@ -454,7 +500,7 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("SystemCheck", "認識結果が返ってきました" + result);
                 }
 
-                if(getRunnnig && !result.equals("null")) {//撮影中は取得
+                if(getRunnig && !result.equals("null")) {//撮影中は取得
                     Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
 
                     //医療機器は認識されたが医療行為は特定できず
@@ -511,55 +557,46 @@ public class MainActivity extends ActionMenuActivity{
 
         //骨髄穿刺が結果として返された場合
         if(result.contains("kotuzui")){
-            //ProgressBarを不可視
-            //progressBar.setVisibility(View.INVISIBLE);
-            kotuzui.run(nowLevel,mainHandler);
+            kotuzui.run(nowLevel, experimentMode, mainHandler);
         }
 
         //腰椎穿刺が結果として返された場合
         if(result.contains("youtui")){
-            //ProgressBarを不可視
-            //progressBar.setVisibility(View.INVISIBLE);
-            youtui.run(nowLevel,mainHandler);
+            youtui.run(nowLevel, experimentMode, mainHandler);
         }
 
         //中心静脈カテーテル挿入が結果として返された場合
         if(result.contains("catheter")){
-            //ProgressBarを不可視
-            //progressBar.setVisibility(View.INVISIBLE);
-            catheter.run(nowLevel,mainHandler);
+            catheter.run(nowLevel, experimentMode, mainHandler);
         }
 
         //血液培養ボトルが結果として返された場合
         if(result.contains("blood")){
-            //ProgressBarを不可視
-            //progressBar.setVisibility(View.INVISIBLE);
-            blood.run(nowLevel,mainHandler);
+            blood.run(nowLevel, experimentMode, mainHandler);
         }
     }
 
     //情報提示プログラム停止用関数
     public void stopInfo(){
-        if (now_info.equals("kotuzui")) {
-            //情報提示用マルチスレッドを中断
-            kotuzui.stopThread();
-            //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
-            kotuzui = new SetInfo_kotuzui(MainActivity.this);
-        } else if (now_info.equals("youtui")) {
-            //情報提示用マルチスレッドを中断
-            youtui.stopThread();
-            //腰椎穿刺の注意喚起情報を提示するクラスのインスタンス
-            youtui = new SetInfo_youtui(MainActivity.this);
-        } else if (now_info.equals("catheter")) {
-            //情報提示用マルチスレッドを中断
-            catheter.stopThread();
-            //中心静脈カテーテル挿入の注意喚起情報を提示するクラスのインスタンス
-            catheter = new SetInfo_catheter(MainActivity.this);
-        } else if (now_info.equals("blood")) {
-            //情報提示用マルチスレッドを中断
-            blood.stopThread();
-            //血液培養の注意喚起情報を提示するクラスのインスタンス
-            blood = new SetInfo_blood(MainActivity.this);
+
+        if(now_info == null){
+            Log.d("情報提示状態","情報は提示されていません");
+            return;
+        }
+
+        switch (now_info) {
+            case "kotuzui":
+                kotuzui.stopThread(); //情報提示用マルチスレッドを中断
+                kotuzui = new SetInfo_kotuzui(MainActivity.this); //注意喚起情報を提示するクラスのインスタンスを再生成
+            case "youtui":
+                youtui.stopThread();
+                youtui = new SetInfo_youtui(MainActivity.this);
+            case "catheter":
+                catheter.stopThread();
+                catheter = new SetInfo_catheter(MainActivity.this);
+            case "blood":
+                blood.stopThread();
+                blood = new SetInfo_blood(MainActivity.this);
         }
     }
 
