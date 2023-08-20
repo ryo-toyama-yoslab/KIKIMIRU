@@ -2,16 +2,12 @@ package com.example.toyamaryo.bladesampleapp;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.FrameLayout;
 import android.widget.Switch;
-
-import com.vuzix.hud.actionmenu.ActionMenuActivity;
 
 public class Setting extends Activity {
 
@@ -64,7 +60,7 @@ public class Setting extends Activity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    if(s2.isChecked() == true || s3.isChecked()==true) {
+                    if(s2.isChecked() || s3.isChecked()) {
                         s2.setChecked(false);
                         s2.setText("未選択");
                         s3.setChecked(false);
@@ -88,7 +84,7 @@ public class Setting extends Activity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    if(s1.isChecked() == true || s3.isChecked()==true) {
+                    if(s1.isChecked() || s3.isChecked()) {
                         s1.setChecked(false);
                         s1.setText("未選択");
                         s3.setChecked(false);
@@ -111,7 +107,7 @@ public class Setting extends Activity {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    if(s1.isChecked() == true || s2.isChecked()==true) {
+                    if(s1.isChecked() || s2.isChecked()) {
                         s1.setChecked(false);
                         s1.setText("未選択");
                         s2.setChecked(false);
