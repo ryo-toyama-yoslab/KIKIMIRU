@@ -1,9 +1,7 @@
 package com.example.toyamaryo.bladesampleapp;
 
 import android.app.Activity;
-import android.content.Context;
 import android.os.Environment;
-import android.os.Handler;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -12,10 +10,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -25,9 +20,16 @@ public class SaveLog extends Thread {
 
     Activity mainActivity;
     StringBuilder log; //ログ保存用
+    public boolean saveFlag;
 
-    SaveLog(Activity activity){
+    SaveLog(Activity activity) {
         this.mainActivity = activity;
+        saveFlag = true;
+    }
+
+    public void stopSaveLog(){
+        Log.d("change Log Flag","ログ保存を停止します");
+        saveFlag = false;
     }
 
     @Override
@@ -63,6 +65,12 @@ public class SaveLog extends Thread {
                 if (line.contains(pId)) {
                     //ストレージに保存する
                     try{
+                        try {
+                            Thread.sleep(1000);
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                        Log.d("LogSave","ログ保存");
                         FileOutputStream fileOutputStream = new FileOutputStream(file, true);
                         OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, "UTF-8");
                         BufferedWriter bw = new BufferedWriter(writer);
@@ -70,11 +78,11 @@ public class SaveLog extends Thread {
                         bw.flush();
                         bw.close();
                     } catch (Exception e) {
-                        Log.d("Error",e.toString());
+                        Log.d("LogSaveError",e.toString());
                     }
 
                 }
-            } while (true);
+            } while (saveFlag);
 
         } catch (IOException e) {
             e.printStackTrace();
