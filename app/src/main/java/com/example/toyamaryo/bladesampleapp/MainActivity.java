@@ -27,7 +27,6 @@ public class MainActivity extends ActionMenuActivity{
 
     //SSL認証サーバとの接続用
     private UploadTaskSSL uploadTaskSSL;
-
     //非SSL認証サーバとの接続用
     private UploadTask uploadTask;
 
@@ -45,7 +44,6 @@ public class MainActivity extends ActionMenuActivity{
     private Button captureButton;
 
     public Handler mainHandler;
-
     public Handler shotHandler;
     public Runnable shotRun;
     public Handler getResultHandler;
@@ -58,7 +56,7 @@ public class MainActivity extends ActionMenuActivity{
     private boolean displayInfoFlag = false;
 
     // 実行環境の切り替え用 debug : 研究室, prod : 本番利用サーバ
-    public String run_mode = "debug";
+    public String run_env = "debug";
 
     //仲介用phpのアドレス(grapefruitサーバ用，SSL)
     private String url = "";
@@ -92,16 +90,41 @@ public class MainActivity extends ActionMenuActivity{
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d("StartSystem_Log" ,"ReadLog");
 
-        try{
-            Runtime.getRuntime().exec(new String[] { "logcat", "-c"}); //以前のログをクリア
-        }catch(Exception e){
-            e.printStackTrace();
-        }
+        setContentView(R.layout.activity_main);
+
+        // UIオブジェクトを取得
+        iryo_name = findViewById(R.id.iryou_name);
+        alert_level = findViewById(R.id.alert_level);
+        attention_info = findViewById(R.id.attention_info);
+        captureButton = findViewById(R.id.button_capture);
+        Button end_btn = findViewById(R.id.end_button);
+
+        captureButton.setFocusableInTouchMode(true);
+
+        experimentMode = 0; // ユーザの選択した経験量レベル
+        nowLevel = 0; // ユーザの選択した経験量レベル
+
+        // Handler生成(handlerはThread内で生成できない)
+        mainHandler = new Handler(); // 情報提示中の中断通知用Handlerを生成
+        shotHandler = new Handler(); // 撮影スレッドの停止用Handlerを生成
+        getResultHandler = new Handler(); // 結果取得用スレッドの停止用フラグを生成
+        saveLogHandler = new Handler(); // ログ保存スレッドの停止用Handlerを生成
+
+        // ログ初期化スレッド
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    Runtime.getRuntime().exec(new String[] { "logcat", "-c"}); //以前のログをクリア
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        }).start();
 
         // 実行環境のモード切替
-        switch(run_mode){
+        switch(run_env){
             case "debug":
                 Log.d("SSL用URIを設定","debug mode ,so insert grapefruit url_get");
                 url = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/getImage.php";
@@ -113,177 +136,156 @@ public class MainActivity extends ActionMenuActivity{
                 break;
         }
 
+        // カメラ準備
+        mCamera = getCameraInstance(); // カメラインスタンス生成
+        mPreview = new CameraPreview(MainActivity.this, mCamera); // カメラ映像のプレビュー作成(撮影に必要)
+        FrameLayout preview = (FrameLayout)findViewById(R.id.camera_preview); // プレビューオブジェクト取得
+        preview.addView(mPreview); // プレビュー追加
 
-        setContentView(R.layout.activity_main);
+        // 情報表示オブジェクトの設定変更スレッド
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // 手技経験量別の設定変更
+                if(nowLevel == 1){
+                    attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
+                }else if(nowLevel == 2){
+                    attention_info.setTextColor(Color.argb(20,255,69,0));
+                }else if(nowLevel == 3){
+                    attention_info.setTextColor(getResources().getColor(R.color.hud_red));
+                }
+            }
+        }).start();
 
-        iryo_name = findViewById(R.id.iryou_name);
-        alert_level = findViewById(R.id.alert_level);
-        attention_info = findViewById(R.id.attention_info);
+        // インスタンス生成スレッド
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // 注意喚起情報変更クラスのインスタンス生成(骨髄穿刺)
+                kotuzui = new SetInfo_kotuzui(MainActivity.this);
+                // 注意喚起情報変更クラスのインスタンス生成(腰椎穿刺)
+                youtui = new SetInfo_youtui(MainActivity.this);
+                // 注意喚起情報変更クラスのインスタンス生成(中心静脈カテーテル挿入)
+                catheter = new SetInfo_catheter(MainActivity.this);
+                // 注意喚起情報変更クラスのインスタンス生成(血液培養)
+                blood = new SetInfo_blood(MainActivity.this);
+                // ログ保存クラスのインスタンス生成
+                saveLog = new SaveLog(MainActivity.this);
+                // 通知音再生クラスのインスタンス生成
+                soundPlayer = new SoundPlayer(MainActivity.this);
+            }
+        }).start();
 
-        // 情報提示中の中断通知用Handlerを生成
-        mainHandler = new Handler();
-        // 撮影スレッドの停止用Handlerを生成
-        shotHandler = new Handler();
-        // 結果取得用スレッドの停止用フラグを生成
-        getResultHandler = new Handler();
-        // ログ保存スレッドの停止用Handlerを生成
-        saveLogHandler = new Handler();
-
-        // ユーザの選択した経験量レベル
-        experimentMode = 0;
-
-        // ユーザの選択した経験量レベル
-        nowLevel = 0;
-
-        soundPlayer = new SoundPlayer(this);
-
-        // Create an instance of Camera
-        mCamera = getCameraInstance();
-
-        // カメラ映像のプレビュー作成(撮影に必要)
-        mPreview = new CameraPreview(this, mCamera);
-
-        FrameLayout preview = (FrameLayout)findViewById(R.id.camera_preview);
-        preview.addView(mPreview);
-
-
-        // mPreviewのSurfaceHolder取得用
-        //mHolder = mPreview.returnHolder();
-
-        // 手技経験量別の設定変更
-        if(nowLevel == 1){
-            attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-        }else if(nowLevel == 2){
-            attention_info.setTextColor(Color.argb(20,255,69,0));
-        }else if(nowLevel == 3){
-            attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-        }
-
-
-        captureButton = findViewById(R.id.button_capture);
-
-        //注意喚起情報変更用インスタンス生成(骨髄穿刺)
-        kotuzui = new SetInfo_kotuzui(MainActivity.this);
-        //注意喚起情報変更用インスタンス生成(腰椎穿刺)
-        youtui = new SetInfo_youtui(MainActivity.this);
-        //注意喚起情報変更用インスタンス生成(中心静脈カテーテル挿入)
-        catheter = new SetInfo_catheter(MainActivity.this);
-        //注意喚起情報変更用インスタンス生成(血液培養)
-        blood = new SetInfo_blood(MainActivity.this);
-
-        //ログ保存用インスタンス生成
-        saveLog = new SaveLog(this);
-
-        //設定画面に遷移
+        // 設定画面に遷移
         Button setting_btn = findViewById(R.id.setting_button);
         setting_btn.setOnClickListener(new View.OnClickListener() {
-               @Override
-               public void onClick(View v) {
-                   Log.d("postLevel",Integer.toString(nowLevel));
-                   Intent setting_intent = new Intent(getApplication(), Setting.class);
-                   setting_intent.putExtra("nowLevel",nowLevel);
-                   Log.d("SystemCheck","startActivityを行う前です");
-                   startActivityForResult(setting_intent,1002);
-                   Log.d("SystemCheck","startActivityを行った後です");
-               }
-           }
-        );
-
-        Button end_btn = findViewById(R.id.end_button);
-        end_btn.setOnClickListener(new View.OnClickListener() {
-               @Override
-               public void onClick(View v) {
-                   Log.d("EndButton","終了ボタンが押されました");
-                   try{
-                       stopInfo();
-                       Log.d("情報提示スレッド停止 : ","成功");
-                   }catch(Exception e){
-                       Log.d("情報提示スレッド停止エラー",e.toString());
-                       e.printStackTrace();
-                   }
-                   moveTaskToBack(true); //アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
-                   getRunnig = false;
-                   switch (run_mode) {
-                       case "debug":
-                           getResultTaskSSL.removeListener(g_createListenerSSL());
-                           break;
-                       case "prod":
-                           getResultTask.removeListener(g_createListener());
-                           break;
-                   }
-                   try {
-                       Log.d("アプリが終了するまで5秒 : ","待機開始");
-                       Thread.sleep(5000); // 5秒待機
-                   }catch (Exception e){
-                       Log.d("アプリ終了待機中エラー",e.toString());
-                   }
-                   Log.d("アプリケーション KIKIMIRU: ","終了します");
-                   finish(); //アプリケーション終了 再開時はonCreate()から(ログ送信のために5秒待機後に完全終了)
-               }
+           @Override
+            public void onClick(View v) {
+                Log.d("postLevel",Integer.toString(nowLevel));
+                Intent setting_intent = new Intent(getApplication(), Setting.class);
+                setting_intent.putExtra("nowLevel",nowLevel);
+                Log.d("SystemCheck","startActivityを行う前です");
+                startActivityForResult(setting_intent,1002);
+                Log.d("SystemCheck","startActivityを行った後です");
             }
-        );
+        });
 
-        // Add a listener to the Capture button
+        // 終了時処理
+        end_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d("EndButton", "終了ボタンが押されました");
+                try {
+                    stopInfo();
+                    Log.d("情報提示スレッド停止 : ", "成功");
+                } catch (Exception e) {
+                    Log.d("情報提示スレッド停止エラー", e.toString());
+                    e.printStackTrace();
+                }
+                moveTaskToBack(true); // アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
+                getRunnig = false; // 情報変更処理を実行されなくする
+
+                // 非同期処理リスナー解放
+                switch (run_env) {
+                    case "debug":
+                        getResultTaskSSL.removeListener(g_createListenerSSL());
+                        break;
+                    case "prod":
+                        getResultTask.removeListener(g_createListener());
+                        break;
+                }
+                try {
+                    Log.d("アプリが終了するまで5秒 : ", "待機開始");
+                    Thread.sleep(5000); // 5秒待機
+                } catch (Exception e) {
+                    Log.d("アプリ終了待機中エラー", e.toString());
+                }
+                Log.d("アプリケーション KIKIMIRU: ", "終了します");
+                finish(); //アプリケーション終了 再開時はonCreate()から(ログ送信のために5秒待機後に完全終了)
+            }
+        });
+
+        // 撮影ボタン押下時処理
         if(checkCameraHardware(this)){
             Log.d("カメラの確認", "カメラの存在確認できました！" );
             captureButton.setOnClickListener(
-                    new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            Log.d("PushCameraButton", "カメラ撮影開始" );
-                            iryo_name.setText(getResources().getString(R.string.iryo_now_recognition));
-                            captureButton.setVisibility(View.INVISIBLE);
-
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() { // 画像撮影スレッド
-                                    shotHandler.post(shotRun = new Runnable(){
-                                        @Override
-                                        public void run() {
-                                            ShotFlag = true;
-                                            ContinueShot();
-                                        }
-                                    });
-                                }
-                            }).start();
-
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() { // 結果取得スレッド
-                                    getResultHandler.post(getResultRun = new Runnable(){
-                                        @Override
-                                        public void run() {
-                                            getRunnig = true;
-                                            GetResult();
-                                        }
-                                    });
-                                }
-                            }).start();
-
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() { // ログ保存スレッド
-                                    saveLogHandler.post(saveLogRun = new Runnable(){
-                                        @Override
-                                        public void run() {
-                                            saveLog.start(); // ログ保存開始
-                                        }
-                                    });
-                                }
-                            }).start();
-
-                        }
-                    });
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Log.d("PushCameraButton", "カメラ撮影開始" );
+                        iryo_name.setText(getResources().getString(R.string.iryo_now_recognition));
+                        captureButton.setVisibility(View.INVISIBLE);
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() { // 画像撮影スレッド
+                                shotHandler.post(shotRun = new Runnable(){
+                                    @Override
+                                    public void run() {
+                                        ShotFlag = true;
+                                        ContinueShot();
+                                    }
+                                });
+                            }
+                        }).start();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() { // 結果取得スレッド
+                                getResultHandler.post(getResultRun = new Runnable(){
+                                    @Override
+                                    public void run() {
+                                        getRunnig = true;
+                                        GetResult();
+                                    }
+                                });
+                            }
+                        }).start();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() { // ログ保存スレッド
+                                saveLogHandler.post(saveLogRun = new Runnable(){
+                                    @Override
+                                    public void run() {
+                                        saveLog.start(); // ログ保存開始
+                                    }
+                                });
+                            }
+                        }).start();
+                    }
+                });
         }else if(!checkCameraHardware(this)){
             Log.d("カメラの確認", "カメラの存在確認できません" );
         }
 
-        //開始時(experimentMode=0) 実行モード画面に遷移
+        // 設定画面を表示
+        Intent setting_intent = new Intent(getApplication(), Setting.class);
+        setting_intent.putExtra("nowLevel",nowLevel);
+        startActivityForResult(setting_intent,1002);
+
+        // 実行モード画面を表示(設定画面の上)
         Intent mode_intent = new Intent(getApplication(), CheckoutRunMode.class);
         mode_intent.putExtra("experimentMode",experimentMode);
         startActivityForResult(mode_intent,1001);
     }
-
 
     @Override
     public void onStart(){
@@ -318,22 +320,14 @@ public class MainActivity extends ActionMenuActivity{
         }
     }
 
-
     protected void onActivityResult( int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
         if(resultCode == RESULT_OK && requestCode == 1001 && intent != null) {
             experimentMode = intent.getIntExtra("experimentMode",0);
-
-            //設定画面に遷移
-            Intent setting_intent = new Intent(getApplication(), Setting.class);
-            setting_intent.putExtra("nowLevel",nowLevel);
-            startActivityForResult(setting_intent,1002);
-        }
-        else if(resultCode == RESULT_OK && requestCode == 1002 && intent != null) {
+        }else if(resultCode == RESULT_OK && requestCode == 1002 && intent != null) {
             nowLevel = intent.getIntExtra("nowLevel",0);
         }
     }
-
 
     /** Check if this device has a camera */
     private boolean checkCameraHardware(Context context) {
@@ -358,8 +352,7 @@ public class MainActivity extends ActionMenuActivity{
         return c; // returns null if camera is unavailable
     }
 
-
-    public void ContinueShot(){
+    private void ContinueShot(){
         mCamera.takePicture(null, null, new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] data, Camera camera) {
@@ -369,7 +362,7 @@ public class MainActivity extends ActionMenuActivity{
                 Log.d("撮影1回完了", "");
 
                 // 実行環境別でクラス変更
-                switch (run_mode) {
+                switch (run_env) {
                     case "debug":
                         uploadTaskSSL = new UploadTaskSSL();
                         uploadTaskSSL.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url, theImage));
@@ -395,7 +388,6 @@ public class MainActivity extends ActionMenuActivity{
                 ContinueShot();//次の撮影
             }
         });
-
     }
 
     public void GetResult(){
@@ -403,7 +395,7 @@ public class MainActivity extends ActionMenuActivity{
         //認識結果確認用インスタンスの生成
 
         // 実行環境別でクラス変更
-        switch(run_mode){
+        switch(run_env){
             case "debug":
                 getResultTaskSSL = new GetResultTaskSSL();
                 getResultTaskSSL.setListener(g_createListenerSSL());
@@ -415,7 +407,6 @@ public class MainActivity extends ActionMenuActivity{
                 getResultTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new Param(url_get));
                 break;
         }
-
     }
 
     //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用 研究室用――――――――――――――――――――――――――――――――――――――――――――――――――
@@ -429,7 +420,7 @@ public class MainActivity extends ActionMenuActivity{
                 }
 
                 if(getRunnig && !result.equals("null")) {//撮影中は取得
-                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+                    Log.d("SystemCheck", "------------認識結果が返ってきました------------ " + result);
 
                     //医療機器は認識されたが医療行為は特定できず
                     if (return_result.size() == 0 && result.equals("unknown")) {
