@@ -74,13 +74,6 @@ public class SetInfo_youtui {
         if(level == 1) {
             Log.d("腰椎穿刺_レベル1-1", "腰椎穿刺レベル1の1つ目の情報を提示");
 
-            //スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){ // 音声通知
-                soundPlayer.playDisplayVoiceSound();
-            }
-
             //医療行為名を骨髄穿刺に変更
             ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_YoutuiSensi);
 
@@ -91,6 +84,10 @@ public class SetInfo_youtui {
             //アラートレベル1の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.spinal_level1_1));
+
+            mActivity.findViewById(R.id.iryou_name).setVisibility(View.VISIBLE); // 医療行為名を表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.VISIBLE); // アラートレベルを表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.VISIBLE); // 注意喚起情報を表示
 
             nextInfoPerLevel = 1.1; //次に提示する注意喚起情報のレベルを設定(アラートレベル1-2の情報 level=1.1)
             controlInfo();
@@ -131,11 +128,9 @@ public class SetInfo_youtui {
         }else if (level == 0) {
             Log.d("腰椎穿刺_終了", "腰椎穿刺の情報を提示を終了");
 
-            //アラートレベル表示を非表示
-            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE); // アラートレベル表示を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE); // 注意喚起情報を非表示
 
-            //アラートレベルの注意喚起情報を非表示
-            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
             //全情報提示が終わったのでスレッドを終了
             stopThread();
         }

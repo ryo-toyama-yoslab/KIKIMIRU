@@ -13,7 +13,6 @@ public class SetInfo_blood {
     private SoundPlayer soundPlayer;
     private int experimentMode;
     private double nextInfoPerLevel;
-    private boolean exitThread;
 
     public Handler handler;
 
@@ -38,11 +37,7 @@ public class SetInfo_blood {
         this.handler = handler;
         Log.d("マルチスレッドに移行", "血液培養の注意喚起情報を提示するマルチスレッドに移行");
 
-        if(nowLevel == 1){
-            setInfo(1);
-        }else if(nowLevel == 2){
-            setInfo(2);
-        }else if(nowLevel == 3){
+        if(nowLevel >= 1){
             setInfo(3);
         }
     }
@@ -60,7 +55,7 @@ public class SetInfo_blood {
                             try {
                                 setInfo(nextInfoPerLevel);
                             }catch (java.lang.NullPointerException e){
-                                Log.d("血液培養マルチスレッド処理を中断", "処理中断のためにインスタンスをnullに変更，それに伴うエラー回避します");
+                                Log.d("血液培養マルチスレッド処理を中断", "処理中断のためインスタンスをnull化済み，それに伴うエラー回避します");
                                 //e.printStackTrace();
                             }
                         }
@@ -76,13 +71,6 @@ public class SetInfo_blood {
         if(level == 3) {
             Log.d("血液培養_レベル3", "血液培養レベル3の情報を提示");
 
-            //スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){ // 音声通知
-                soundPlayer.playDisplayVoiceSound();
-            }
-
             //医療行為名を骨髄穿刺に変更
             ((TextView) mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_KetuekiBaiyou);
 
@@ -93,17 +81,20 @@ public class SetInfo_blood {
             //アラートレベル3の注意喚起情報を提示，テキストカラーを変更
             ((TextView) mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView) mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level3));
+
+            mActivity.findViewById(R.id.iryou_name).setVisibility(View.VISIBLE); // 医療行為名を表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.VISIBLE); // アラートレベルを表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.VISIBLE); // 注意喚起情報を表示
+
             nextInfoPerLevel = 0; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
         }else if (level == 0) {
             Log.d("血液培養_終了", "血液培養の情報を提示を終了");
 
-            //アラートレベル表示を非表示
-            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE); // アラートレベル表示を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE); // 注意喚起情報を非表示
 
-            //アラートレベルの注意喚起情報を非表示
-            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
-            //全情報提示が終わったのでスレッドを終了
+            // 全情報提示が終わったのでスレッドを終了
             stopThread();
         }
 

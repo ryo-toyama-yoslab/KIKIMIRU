@@ -69,11 +69,8 @@ public class MainActivity extends ActionMenuActivity{
     // Sound設定
     public SoundPlayer soundPlayer;
 
-    // サーバからの結果保存用HashMap
-    public HashMap<String,Integer> return_result = new HashMap<>();
-
     //現在提示している情報
-    public String now_info = null;
+    public String now_info = "";
 
     //骨髄穿刺の注意喚起情報を提示するクラスのインスタンス
     SetInfo_kotuzui kotuzui;
@@ -99,6 +96,10 @@ public class MainActivity extends ActionMenuActivity{
         attention_info = findViewById(R.id.attention_info);
         captureButton = findViewById(R.id.button_capture);
         Button end_btn = findViewById(R.id.end_button);
+
+        iryo_name.setVisibility(View.INVISIBLE); // 医療行為名を非表示
+        alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
+        attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
 
         captureButton.setFocusableInTouchMode(true);
 
@@ -416,53 +417,66 @@ public class MainActivity extends ActionMenuActivity{
             public void onSuccess(String result){
 
                 if(result.equals("null")){
-                    Log.d("SystemCheck", "認識結果が返ってきました" + result);
+                    Log.d("SystemCheck", "認識結果にnullが返ってきました．検出処理に問題があるかもしれません" + result);
+                    return;
                 }
 
-                if(getRunnig && !result.equals("null")) {//撮影中は取得
+                if(getRunnig) { // 撮影中は取得
                     Log.d("SystemCheck", "------------認識結果が返ってきました------------ " + result);
 
-                    //医療機器は認識されたが医療行為は特定できず
-                    if (return_result.size() == 0 && result.equals("unknown")) {
-                        Log.d("認識中", "医療機器は認識されたが医療行為特定には情報不足");
-                    }else{//何らかの医療行為が特定された場合
-                        if (return_result.get(result) == null) { //初の認識結果なら１を追加
-                            return_result.put(result, 1);
-                        }else{ //既に追加されてる結果は＋1
-                            return_result.put(result, return_result.get(result) + 1);
-                        }
-                        if(return_result.size() == 0){
-                            Log.d("情報提示", "特定された医療行為の情報を提示します(初特定)");
+                    if (now_info.isEmpty() && result.equals("unknown")) { // 医療行為は未特定
+                        Log.d("認識中", "医療行為未特定");
+                    }else{ // 何らかの医療行為が特定された場合
+                        if(now_info.isEmpty()){
+                            // 情報通知音
+                            if(experimentMode == 1){
+                                soundPlayer.playMechanicalSound();
+                            }else if(experimentMode == 2){ // 音声通知
+                                soundPlayer.playDisplayVoiceSound();
+                            }
                             now_info = result;
                             setInfo(now_info);
                             displayInfoFlag = true;
                         }else{
-                            if(result.equals(now_info)){ //提示中の医療行為が再度認識されている場合
+                            if(result.equals(now_info)){ // 提示中の医療行為が再度認識されている場合
                                 Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
                             }else if(result.equals("unknown")) {
                                 if(displayInfoFlag) {
                                     Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                    iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
-                                    alert_level.setTextColor(getResources().getColor(R.color.hud_white));
-                                    alert_level.setText(getResources().getString(R.string.alertLevel_default));
-                                    attention_info.setTextColor(getResources().getColor(R.color.hud_white));
-                                    attention_info.setText("");
-                                    stopInfo();
-                                    now_info = null;
-                                    displayInfoFlag = false;
+                                    if(stopInfo()) {
+                                        iryo_name.setText(R.string.iryo_now_recognition_anew);
+                                        alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
+                                        attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
+                                        displayInfoFlag = false;
+                                    }
+                                    // 音声通知の場合 情報変更通知音
+                                    if(experimentMode == 2){
+                                        soundPlayer.playCheckingVoiceSound();
+                                    }
                                 }
-                            }else{ //医療行為を取得した処理(再特定)
+                            }else{ // 医療行為を取得した処理(再特定)
                                 Log.d("情報提示", "特定された医療行為の情報を提示します");
+                                if(displayInfoFlag) {
+                                    Log.d("認識結果変更 提示中断", "情報提示中に異なる特定結果を取得 情報提示を中断"); // unknownを取得する前に別の医療行為が特定された場合
+                                    if(stopInfo()) {
+                                        iryo_name.setVisibility(View.INVISIBLE); // 医療行為名を非表示
+                                        alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
+                                        attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
+                                    }
+                                }
+
+                                // 音声通知の場合 情報変更通知音
+                                if(experimentMode == 2){
+                                    soundPlayer.playCorrectVoiceSound();
+                                }
+
                                 now_info = result;
                                 setInfo(now_info);
-                                displayInfoFlag = true;
                             }
                         }
                     }
 
-                    Log.d("result", "認識結果数:" + return_result.size());
-                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
-
+                    Log.d("latest_result", "最新特定結果 : " + now_info);
                 }
 
                 new Thread(new Runnable() {
@@ -487,29 +501,25 @@ public class MainActivity extends ActionMenuActivity{
         return new GetResultTask.Listener() {
             @Override
             public void onSuccess(String result){
+
                 if(result.equals("null")){
-                    Log.d("SystemCheck", "認識結果が返ってきました" + result);
+                    Log.d("SystemCheck", "認識結果にnullが返ってきました．検出処理に問題があるかもしれません" + result);
+                    return;
                 }
 
-                if(getRunnig && !result.equals("null")) {//撮影中は取得
-                    Log.d("SystemCheck", "------------認識結果が返ってきました----------------" + result);
+                if(getRunnig) { // 撮影中は取得
+                    Log.d("SystemCheck", "------------認識結果が返ってきました------------ " + result);
 
-                    //医療機器は認識されたが医療行為は特定できず
-                    if (return_result.size() == 0 && result.equals("unknown")) {
-                        Log.d("認識中", "医療機器は認識されたが医療行為特定には情報不足");
-                    }else{//何らかの医療行為が特定された場合
-                        if (return_result.get(result) == null) { //初の認識結果なら１を追加
-                            return_result.put(result, 1);
-                        }else{ //既に追加されてる結果は＋1
-                            return_result.put(result, return_result.get(result) + 1);
-                        }
-                        if(return_result.size() == 0){
-                            Log.d("情報提示", "特定された医療行為の情報を提示します(初特定)");
+                    if (now_info.isEmpty() && result.equals("unknown")) { // 医療行為は未特定
+                        Log.d("認識中", "医療行為未特定");
+                    }else{ // 何らかの医療行為が特定された場合
+                        if(now_info.isEmpty()){
+                            Log.d("情報提示", "特定された医療行為の情報を提示(初提示)");
                             now_info = result;
                             setInfo(now_info);
                             displayInfoFlag = true;
                         }else{
-                            if(result.equals(now_info)){ //提示中の医療行為が再度認識されている場合
+                            if(result.equals(now_info)){ // 提示中の医療行為が再度認識されている場合
                                 Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
                             }else if(result.equals("unknown")) {
                                 if(displayInfoFlag) {
@@ -520,11 +530,20 @@ public class MainActivity extends ActionMenuActivity{
                                     attention_info.setTextColor(getResources().getColor(R.color.hud_white));
                                     attention_info.setText("");
                                     stopInfo();
-                                    now_info = null;
                                     displayInfoFlag = false;
                                 }
-                            }else{ //医療行為を取得した処理(再特定)
+                            }else{ // 医療行為を取得した処理(再特定)
                                 Log.d("情報提示", "特定された医療行為の情報を提示します");
+                                if(displayInfoFlag) {
+                                    Log.d("認識結果変更 提示中断", "情報提示中に異なる特定結果を取得 情報提示を中断"); // unknownを取得する前に別の医療行為が特定された場合
+                                    iryo_name.setText(getResources().getString(R.string.iryo_now_recognition_anew));
+                                    alert_level.setTextColor(getResources().getColor(R.color.hud_white));
+                                    alert_level.setText(getResources().getString(R.string.alertLevel_default));
+                                    attention_info.setTextColor(getResources().getColor(R.color.hud_white));
+                                    attention_info.setText("");
+                                    stopInfo();
+                                    displayInfoFlag = false;
+                                }
                                 now_info = result;
                                 setInfo(now_info);
                                 displayInfoFlag = true;
@@ -532,10 +551,19 @@ public class MainActivity extends ActionMenuActivity{
                         }
                     }
 
-                    Log.d("result", "認識結果数:" + return_result.size());
-                    Log.d("return_result", "認識結果蓄積状況:" + return_result);
-
+                    Log.d("latest_result", "最新特定結果 : " + now_info);
                 }
+
+                new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            Thread.sleep(1000); // 1秒待機
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                });
+
                 GetResult();
             }
         };
@@ -568,29 +596,28 @@ public class MainActivity extends ActionMenuActivity{
     }
 
     //情報提示プログラム停止用関数
-    public void stopInfo(){
-
-        if(now_info == null){
-            Log.d("情報提示状態","情報は提示されていません");
-            return;
-        }
+    public boolean stopInfo(){
 
         switch (now_info) {
             case "kotuzui":
                 kotuzui.stopThread(); //情報提示用マルチスレッドを中断
                 kotuzui = new SetInfo_kotuzui(MainActivity.this); //注意喚起情報を提示するクラスのインスタンスを再生成
+                break;
             case "youtui":
                 youtui.stopThread();
                 youtui = new SetInfo_youtui(MainActivity.this);
+                break;
             case "catheter":
                 catheter.stopThread();
                 catheter = new SetInfo_catheter(MainActivity.this);
+                break;
             case "blood":
                 blood.stopThread();
                 blood = new SetInfo_blood(MainActivity.this);
+                break;
         }
+        return true;
     }
-
 
     @Override
     protected boolean onCreateActionMenu(Menu menu) {

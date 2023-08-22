@@ -19,11 +19,8 @@ public class SetInfo_kotuzui {
     private SoundPlayer soundPlayer;
     private int experimentMode;
     private double nextInfoPerLevel;
-    private boolean running;
     private Handler handler;
 
-    //取得する日時のフォーマットを指定
-    final DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 
     SetInfo_kotuzui(Activity activity){
         mActivity = activity;
@@ -44,6 +41,7 @@ public class SetInfo_kotuzui {
         this.experimentMode = experimentMode;
         this.handler = handler;
         Log.d("マルチスレッドに移行", "骨髄穿刺の注意喚起情報を提示するマルチスレッドに移行");
+
         if(nowLevel == 1){
             setInfo(1);
         }else if(nowLevel == 2){
@@ -86,13 +84,6 @@ public class SetInfo_kotuzui {
             Log.d("現在時刻", "CurrentTime : " + df.format(date));
             */
 
-            //スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){ // 音声通知
-                soundPlayer.playDisplayVoiceSound();
-            }
-
             //医療行為名を骨髄穿刺に変更
             ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_Kotuzuisennsi);
 
@@ -103,6 +94,10 @@ public class SetInfo_kotuzui {
             //アラートレベル1の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level1));
+
+            mActivity.findViewById(R.id.iryou_name).setVisibility(View.VISIBLE); // 医療行為名を表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.VISIBLE); // アラートレベルを表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.VISIBLE); // 注意喚起情報を表示
 
             nextInfoPerLevel = 2; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
@@ -127,7 +122,6 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level2));
 
             nextInfoPerLevel = 3; //次に提示する注意喚起情報のレベルを設定
-            running = true;
             controlInfo();
 
         }else if (level == 3){
@@ -150,17 +144,13 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level3));
 
             nextInfoPerLevel = 0; //情報提示終了フラグを設定
-            running = true;
             controlInfo();
         }else if (level == 0) {
             Log.d("骨髄穿刺_終了", "骨髄穿刺の情報を提示を終了");
 
-            //アラートレベル表示を非表示
-            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE); // アラートレベル表示を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE); // 注意喚起情報を非表示
 
-            //アラートレベルの注意喚起情報を非表示
-            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
-            running = false;
             //全情報提示が終わったのでスレッドを終了
             stopThread();
         }
@@ -168,9 +158,6 @@ public class SetInfo_kotuzui {
 
     public void stopThread() {
         Log.d("骨髄穿刺の情報提示終了", "情報提示を中断もしくは終了します");
-        //日時を指定したフォーマットで取得
-        final Date date = new Date(System.currentTimeMillis());
-        Log.d("現在時刻", "CurrentTime : " + df.format(date));
         soundPlayer = null;
         mActivity = null;
     }

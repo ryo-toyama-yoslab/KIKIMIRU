@@ -14,55 +14,59 @@ tools:context=".MainActivity">
         android:layout_height="match_parent" />
 
     <LinearLayout
+        android:id="@+id/button_linear"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_below="@+id/iryou_name"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
         android:orientation="horizontal">
 
         <Button
             android:id="@+id/setting_button"
-            android:layout_width="65dp"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:layout_alignBaseline="@+id/alert_level"
-            android:layout_alignParentEnd="true"
             android:layout_weight="1"
             android:text="@string/setting_button"
-            android:textSize="20sp" />
+            android:textSize="18sp" />
 
         <Button
             android:id="@+id/end_button"
-            android:layout_width="65dp"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignTop="@+id/setting_button"
             android:layout_weight="1"
             android:text="@string/end"
-            android:textSize="20sp" />
+            android:textSize="18sp" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/iryou_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
+        android:layout_below="@+id/button_linear"
         android:text="@string/iryo_name_default"
         android:textAlignment="viewStart"
         android:textColor="@color/hud_white"
-        android:textSize="19sp"
-        android:visibility="visible" />
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/alert_level"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/iryou_name"
+        android:text="@string/alertLevel_default"
+        android:textAlignment="textEnd"
+        android:textColor="@color/hud_white"
+        android:textSize="18sp" />
 
     <TextView
         android:id="@+id/attention_info"
         android:layout_width="match_parent"
-        android:layout_height="212dp"
+        android:layout_height="200dp"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
         android:textAlignment="center"
         android:textColor="@color/hud_red"
-        android:textSize="22sp"
-        android:visibility="visible" />
+        android:textSize="22sp" />
 
     <FrameLayout
         android:id="@+id/camera_preview"
@@ -70,30 +74,16 @@ tools:context=".MainActivity">
         android:layout_height="fill_parent"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
-        android:layout_weight="1"
         android:visibility="invisible">
 
     </FrameLayout>
-
-    <TextView
-        android:id="@+id/alert_level"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignStart="@+id/iryou_name"
-        android:layout_below="@+id/iryou_name"
-        android:text="@string/alertLevel_default"
-        android:textAlignment="textEnd"
-        android:textColor="@color/hud_white"
-        android:textSize="19sp"
-        android:visibility="visible" />
 
     <LinearLayout
         android:layout_width="100dp"
         android:layout_height="70dp"
         android:layout_centerInParent="true"
         android:layout_gravity="bottom"
-        android:gravity="bottom"
-        android:visibility="visible">
+        android:gravity="bottom">
 
 
         <Button

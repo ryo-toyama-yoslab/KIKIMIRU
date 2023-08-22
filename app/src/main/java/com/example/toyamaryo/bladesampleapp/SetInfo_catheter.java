@@ -13,7 +13,6 @@ public class SetInfo_catheter {
     private SoundPlayer soundPlayer;
     private int experimentMode;
     private double nextInfoPerLevel;
-    private boolean exitThread;
 
     public Handler handler;
 
@@ -72,13 +71,6 @@ public class SetInfo_catheter {
         if(level == 1) {
             Log.d("中心静脈カテーテル挿入_レベル1", "中心静脈カテーテル挿入レベル1の情報を提示");
 
-            //スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){ // 音声通知
-                soundPlayer.playDisplayVoiceSound();
-            }
-
             //医療行為名を骨髄穿刺に変更
             ((TextView)mActivity.findViewById(R.id.iryou_name)).setText(R.string.iryo_name_CatheterSounyuu);
 
@@ -89,6 +81,10 @@ public class SetInfo_catheter {
             //アラートレベル1の注意喚起情報を提示，テキストカラーを変更
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_yellow));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.central_catheter_in_level1));
+
+            mActivity.findViewById(R.id.iryou_name).setVisibility(View.VISIBLE); // 医療行為名を表示
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.VISIBLE); // アラートレベルを表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.VISIBLE); // 注意喚起情報を表示
 
             nextInfoPerLevel = 3; //次に提示する注意喚起情報のレベルを設定
             controlInfo();
@@ -111,11 +107,9 @@ public class SetInfo_catheter {
         }else if (level == 0) {
             Log.d("中心静脈カテーテル挿入_終了", "中心静脈カテーテル挿入の情報を提示を終了");
 
-            //アラートレベル表示を非表示
-            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE);
+            mActivity.findViewById(R.id.alert_level).setVisibility(View.INVISIBLE); // アラートレベル表示を非表示
+            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE); // 注意喚起情報を非表示
 
-            //アラートレベルの注意喚起情報を非表示
-            mActivity.findViewById(R.id.attention_info).setVisibility(View.INVISIBLE);
             //全情報提示が終わったのでスレッドを終了
             stopThread();
         }
