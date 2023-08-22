@@ -98,7 +98,7 @@ public class CheckoutRunMode extends Activity {
                Intent intent = new Intent();
                intent.putExtra("experimentMode",mode);
                setResult(RESULT_OK, intent);
-               Log.d("画面遷移","実行モード変更画面から設定画面に遷移します．設定したレベルは：" + mode);
+               Log.d("画面遷移","実行モード変更画面から設定画面に遷移します．設定したモードは：" + mode);
                finish();
            }
        });
