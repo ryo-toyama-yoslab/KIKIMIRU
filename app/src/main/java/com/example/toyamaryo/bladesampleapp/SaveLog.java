@@ -1,6 +1,5 @@
 package com.example.toyamaryo.bladesampleapp;
 
-import android.app.Activity;
 import android.os.Environment;
 import android.util.Log;
 
@@ -14,16 +13,15 @@ import java.io.OutputStreamWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 
 public class SaveLog extends Thread {
 
-    Activity mainActivity;
     StringBuilder log; //ログ保存用
-    public boolean saveFlag;
+    private boolean saveFlag;
 
-    SaveLog(Activity activity) {
-        this.mainActivity = activity;
+    SaveLog(){
         saveFlag = true;
     }
 
@@ -32,58 +30,65 @@ public class SaveLog extends Thread {
         saveFlag = false;
     }
 
-    @Override
     public void run(){
-        Process process = null;
-        BufferedReader bReader = null;
+        Process process;
+        FileOutputStream fileOutputStream = null;
+        OutputStreamWriter out = null;
+        BufferedReader bReader = null; // Logcat読み込み用
+        BufferedWriter bw = null; // Log書き込み用
+        File logFile;
 
         final String pId = Integer.toString(android.os.Process.myPid());
         Log.i("debug", pId);
 
         try {
-            process = new ProcessBuilder("logcat", "-v", "time").start();
-            bReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            //取得する日時のフォーマットを指定
-            DateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
+            process = Runtime.getRuntime().exec(new String[] { "logcat", "-v", "time"});
+            bReader = new BufferedReader(new InputStreamReader(process.getInputStream()), 1024);
+
+            Locale japan = new Locale("ja","JP","JP");
+            DateFormat df = new SimpleDateFormat("yyyyMMddHHmmss", japan);
             Date date = new Date(System.currentTimeMillis());
             String fileName = "ApplicationLog_" + df.format(date) +".txt";
-            String filePath = Environment.getExternalStorageDirectory().getPath() + "/" + fileName;
-            Log.d("filePath",filePath);
-            File file = new File(filePath);
+
+            String folderName = "KIKIMIRU_LOG";
+            File logFolder = new File(Environment.getExternalStorageDirectory(), folderName);
+            String logFilePath = logFolder.getPath() + "/" + fileName;
+            logFile = new File(logFilePath); // ログ保存用テキストファイル作成
+
             String line;
-            do {
+            while(saveFlag){
                 line = bReader.readLine();
-                // logが無い時は休む
-                if (line.length() == 0) {
-                    try {
-                        sleep(1000);
-                    } catch (InterruptedException ignored) {
+                if(line.length() == 0){
+                    try{
+                        Thread.sleep(500);
+                    }catch(InterruptedException e) {
+                        e.printStackTrace();
                     }
                     continue;
                 }
 
                 if (line.contains(pId)) {
-                    //ストレージに保存する
                     try{
-                        try {
-                            Thread.sleep(1000);
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
-                        Log.d("LogSave","ログ保存");
-                        FileOutputStream fileOutputStream = new FileOutputStream(file, true);
-                        OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, "UTF-8");
-                        BufferedWriter bw = new BufferedWriter(writer);
-                        bw.write(line + "\r\n");
-                        bw.flush();
-                        bw.close();
-                    } catch (Exception e) {
+                        fileOutputStream = new FileOutputStream(logFile, true); // 出力ストリームの生成(追記モード)
+                        out = new OutputStreamWriter(fileOutputStream,"UTF-8");
+                        bw = new BufferedWriter(out); // 出力ストリームのバッファリング
+                        bw.write(line + "\r\n"); // テキストデータをバッファに格納
+                        bw.flush(); // バッファのデータをファイルに書き込む
+                    }catch(Exception e){
                         Log.d("LogSaveError",e.toString());
+                    }finally{
+                        if(fileOutputStream != null && out != null && bw != null) {
+                            try{
+                                fileOutputStream.close();
+                                out.close();
+                                bw.close();
+                            }catch(IOException e){
+                                e.printStackTrace();
+                            }
+                        }
                     }
-
                 }
-            } while (saveFlag);
-
+            }
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
