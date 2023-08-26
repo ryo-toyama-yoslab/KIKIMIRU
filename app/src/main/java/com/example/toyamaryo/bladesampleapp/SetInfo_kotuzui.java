@@ -49,11 +49,11 @@ public class SetInfo_kotuzui {
         Log.d("マルチスレッドに移行", "骨髄穿刺の注意喚起情報を提示するマルチスレッドに移行");
 
         if(nowLevel == 1){
-            setInfo(1);
+            setInfo(1,true);
         }else if(nowLevel == 2){
-            setInfo(2);
+            setInfo(2,true);
         }else if(nowLevel == 3){
-            setInfo(3);
+            setInfo(3,true);
         }
     }
 
@@ -68,7 +68,7 @@ public class SetInfo_kotuzui {
                         public void run() {
                             if(exitThread) {
                                 try {
-                                    setInfo(nextInfoPerLevel);
+                                    setInfo(nextInfoPerLevel, false);
                                 }catch(java.lang.NullPointerException e) {
                                     Log.e("error","情報提示スレッド処理で縫null検知");
                                     e.printStackTrace();
@@ -85,7 +85,7 @@ public class SetInfo_kotuzui {
         }).start();
     }
 
-    private void setInfo(double level){
+    private void setInfo(double level,boolean firstSetInfo){
         if(level == 1) {
             Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
 
@@ -113,11 +113,15 @@ public class SetInfo_kotuzui {
         } else if (level == 2){
             Log.d("骨髄穿刺_レベル2", "骨髄穿刺レベル2の情報を提示");
 
+
             ///スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){
-                soundPlayer.playCorrectVoiceSound();
+            if(!firstSetInfo){ // 2個目以降の情報提示
+                if (experimentMode == 1) {
+                    soundPlayer.playMechanicalSound();
+                } else if (experimentMode == 2) {
+                    Log.d("骨髄穿刺 音声通知", "second");
+                    soundPlayer.playCorrectVoiceSound();
+                }
             }
 
             // 医療行為名設定
@@ -144,11 +148,13 @@ public class SetInfo_kotuzui {
         }else if (level == 3){
             Log.d("骨髄穿刺_レベル3", "骨髄穿刺レベル3の情報を提示");
 
-            //スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){
-                soundPlayer.playCorrectVoiceSound();
+            ///スピーカー鳴音
+            if(!firstSetInfo){ // 2個目以降の情報提示
+                if (experimentMode == 1) {
+                    soundPlayer.playMechanicalSound();
+                } else if (experimentMode == 2) {
+                    soundPlayer.playCorrectVoiceSound();
+                }
             }
 
             // 医療行為名設定
@@ -165,7 +171,7 @@ public class SetInfo_kotuzui {
             ((TextView)mActivity.findViewById(R.id.attention_info)).setTextColor(mActivity.getResources().getColor(R.color.hud_red));
             ((TextView)mActivity.findViewById(R.id.attention_info)).setText(mActivity.getResources().getString(R.string.mark_level3));
 
-            if(!infoVisibility){ // 情報提示オブジェクト表示
+            if(!infoVisibility) { // 情報提示オブジェクト表示
                 changeInfoVisible();
             }
 
@@ -175,17 +181,24 @@ public class SetInfo_kotuzui {
             Log.d("骨髄穿刺_終了", "骨髄穿刺の情報を提示を終了");
 
             changeInfoInvisible(); // 情報提示オブジェクト非表示
-
-            //全情報提示が終わったのでスレッドを終了
-            stopThread();
+            stopThread(); // 全情報提示が終わったのでスレッドを終了
         }
     }
 
-    public void stopThread() {
+    public boolean stopThread() {
         Log.d("骨髄穿刺の情報提示終了", "情報提示を中断もしくは終了します");
-        soundPlayer = null;
-        mActivity = null;
-        exitThread = false;
+        boolean checkStop;
+        try {
+            soundPlayer = null;
+            mActivity = null;
+            exitThread = false;
+            checkStop = true;
+        }catch(Exception e){
+            checkStop = false;
+            Log.e("InfoThreadStopError", e.toString());
+        }
+
+        return checkStop;
     }
 
     private void setMedicalName(){

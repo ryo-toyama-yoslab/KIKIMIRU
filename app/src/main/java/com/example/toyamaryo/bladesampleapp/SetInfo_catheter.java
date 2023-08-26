@@ -42,9 +42,9 @@ public class SetInfo_catheter {
         Log.d("マルチスレッドに移行", "中心静脈カテーテル挿入の注意喚起情報を提示するマルチスレッドに移行");
 
         if(nowLevel == 1){
-            setInfo(1);
+            setInfo(1, true);
         }else if(nowLevel >= 2){ // 腰椎穿刺は設定したレベルが2以上ならアラートレベル3の情報のみを提示
-            setInfo(3);
+            setInfo(3, true);
         }
     }
 
@@ -59,7 +59,7 @@ public class SetInfo_catheter {
                         public void run() {
                             if(exitThread) {
                                 try {
-                                    setInfo(nextInfoPerLevel);
+                                    setInfo(nextInfoPerLevel, false);
                                 }catch(java.lang.NullPointerException e) {
                                     Log.e("error","情報提示スレッド処理で縫null検知");
                                     e.printStackTrace();
@@ -76,7 +76,7 @@ public class SetInfo_catheter {
         }).start();
     }
 
-    private void setInfo(double level){
+    private void setInfo(double level, boolean firstSetInfo){
         if(level == 1) {
             Log.d("中心静脈カテーテル挿入_レベル1", "中心静脈カテーテル挿入レベル1の情報を提示");
 
@@ -104,11 +104,13 @@ public class SetInfo_catheter {
         } else if (level == 3){
             Log.d("中心静脈カテーテル挿入_レベル3", "中心静脈カテーテル挿入レベル3の情報を提示");
 
-            //スピーカー鳴音
-            if(experimentMode == 1){
-                soundPlayer.playMechanicalSound();
-            }else if(experimentMode == 2){
-                soundPlayer.playCorrectVoiceSound();
+            ///スピーカー鳴音
+            if(!firstSetInfo){ // 2個目以降の情報提示
+                if (experimentMode == 1) {
+                    soundPlayer.playMechanicalSound();
+                } else if (experimentMode == 2) {
+                    soundPlayer.playCorrectVoiceSound();
+                }
             }
 
             // 医療行為名設定
@@ -141,11 +143,20 @@ public class SetInfo_catheter {
         }
     }
 
-    public void stopThread() {
+    public boolean stopThread() {
         Log.d("中心静脈カテーテル挿入の情報提示終了", "情報提示を中断もしくは終了します");
-        soundPlayer = null;
-        mActivity = null;
-        exitThread = false;
+        boolean checkStop;
+        try {
+            soundPlayer = null;
+            mActivity = null;
+            exitThread = false;
+            checkStop = true;
+        }catch(Exception e){
+            checkStop = false;
+            Log.e("InfoThreadStopError", e.toString());
+        }
+
+        return checkStop;
     }
 
     private void setMedicalName(){

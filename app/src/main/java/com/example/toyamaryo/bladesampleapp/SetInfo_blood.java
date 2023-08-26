@@ -43,11 +43,11 @@ public class SetInfo_blood {
         Log.d("マルチスレッドに移行", "血液培養の注意喚起情報を提示するマルチスレッドに移行");
 
         if(nowLevel >= 1){
-            setInfo(3);
+            setInfo(3, true);
         }
     }
 
-    //現状では血液培養の情報が1つだけのためcontrolInfo()は未使用
+    //現状では血液培養の情報は1つだけ
     private void controlInfo(){
         new Thread(new Runnable() {
             public void run() {
@@ -59,7 +59,7 @@ public class SetInfo_blood {
                         public void run() {
                             if(exitThread) {
                                 try {
-                                    setInfo(nextInfoPerLevel);
+                                    setInfo(nextInfoPerLevel, false);
                                 }catch(java.lang.NullPointerException e) {
                                     Log.e("error","情報提示スレッド処理で縫null検知");
                                     e.printStackTrace();
@@ -76,7 +76,7 @@ public class SetInfo_blood {
         }).start();
     }
 
-    private void setInfo(double level){
+    private void setInfo(double level, boolean firstSetInfo){
         if(level == 3) {
             Log.d("血液培養_レベル3", "血液培養レベル3の情報を提示");
 
@@ -111,11 +111,20 @@ public class SetInfo_blood {
 
     }
 
-    public void stopThread() {
+    public boolean stopThread() {
         Log.d("血液培養の情報提示終了", "情報提示を中断もしくは終了します");
-        soundPlayer = null;
-        mActivity = null;
-        exitThread = false;
+        boolean checkStop;
+        try {
+            soundPlayer = null;
+            mActivity = null;
+            exitThread = false;
+            checkStop = true;
+        }catch(Exception e){
+            checkStop = false;
+            Log.e("InfoThreadStopError", e.toString());
+        }
+
+        return checkStop;
     }
 
     private void setMedicalName(){
