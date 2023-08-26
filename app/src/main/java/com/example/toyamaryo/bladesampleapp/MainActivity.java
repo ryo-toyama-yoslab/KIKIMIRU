@@ -42,13 +42,15 @@ public class MainActivity extends ActionMenuActivity{
     private Bitmap theImage;
     private Button captureButton;
 
-    public Handler mainHandler;
-    public Handler shotHandler;
-    public Runnable shotRun;
-    public Handler getResultHandler;
-    public Runnable getResultRun;
-    public Handler saveLogHandler;
-    public Runnable saveLogRun;
+    private Handler mainHandler;
+    private Handler shotHandler;
+    private Runnable shotRun;
+    private Handler getResultHandler;
+    private Runnable getResultRun;
+    private Handler getResultDelayHandler;
+    private Runnable getResultDelayRun;
+    private Handler saveLogHandler;
+    private Runnable saveLogRun;
 
     private boolean getRunnig = false;//認識結果取得実行用フラグ
     private boolean displayInfoFlag = false; // 情報が表示されているかのフラグ
@@ -105,10 +107,26 @@ public class MainActivity extends ActionMenuActivity{
         experimentMode = 0; // ユーザの選択した経験量レベル
         nowLevel = 0; // ユーザの選択した経験量レベル
 
+        // 情報表示オブジェクトの設定変更スレッド
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // 手技経験量別の設定変更
+                if(nowLevel == 1){
+                    attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
+                }else if(nowLevel == 2){
+                    attention_info.setTextColor(Color.argb(20,255,69,0));
+                }else if(nowLevel == 3){
+                    attention_info.setTextColor(getResources().getColor(R.color.hud_red));
+                }
+            }
+        }).start();
+
         // Handler生成(handlerはThread内で生成できない)
         mainHandler = new Handler(); // 情報提示中の中断通知用Handlerを生成
         shotHandler = new Handler(); // 撮影スレッドの停止用Handlerを生成
-        getResultHandler = new Handler(); // 結果取得用スレッドの停止用フラグを生成
+        getResultHandler = new Handler(); // 結果取得用スレッドの停止用Handlerを生成
+        getResultDelayHandler = new Handler(); // 結果取得を定期実行するための
         saveLogHandler = new Handler(); // ログ保存スレッドの停止用Handlerを生成
 
         // ログ初期化スレッド
@@ -165,9 +183,11 @@ public class MainActivity extends ActionMenuActivity{
         setting_btn.setOnClickListener(new View.OnClickListener() {
            @Override
             public void onClick(View v) {
-               getRunnig = false;
-               stopInfo();
-               Log.d("postLevel",Integer.toString(nowLevel));
+               if(stopInfo()) {
+                   Log.i("情報提示中断", "設定画面に遷移します");
+                   Log.d("postLevel", Integer.toString(nowLevel));
+               }
+               now_info = "setting"; // 設定画面遷移
                Intent setting_intent = new Intent(getApplication(), Setting.class);
                setting_intent.putExtra("nowLevel",nowLevel);
                Log.d("SystemCheck","startActivityを行う前です");
@@ -189,8 +209,8 @@ public class MainActivity extends ActionMenuActivity{
                     e.printStackTrace();
                 }
 
-                moveTaskToBack(true); // アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
                 getRunnig = false; // 情報変更処理を実行されなくする
+                moveTaskToBack(true); // アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
 
                 // 非同期処理リスナー解放
                 switch (run_env) {
@@ -275,31 +295,19 @@ public class MainActivity extends ActionMenuActivity{
     @Override
     public void onStart(){ // リソースの確保・UIの更新
         super.onStart();
+        getRunnig = true; // MainUI表示状態に設定
+        alert_level.setText("");
+        attention_info.setText("");
+        iryo_name.setText(getResources().getString(R.string.iryo_name_default));
         Log.v("LifeCycle_MainActivity", "onStart");
-        getRunnig = true; // MainUIが表示されている状態に設定
-
-        // 情報表示オブジェクトの設定変更スレッド
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                // 手技経験量別の設定変更
-                if(nowLevel == 1){
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_yellow));
-                }else if(nowLevel == 2){
-                    attention_info.setTextColor(Color.argb(20,255,69,0));
-                }else if(nowLevel == 3){
-                    attention_info.setTextColor(getResources().getColor(R.color.hud_red));
-                }
-            }
-        }).start();
-
     }
 
     @Override
     public void onPause(){ // リソースの解放・非同期タスク停止
         super.onPause();
         Log.d("LifeCycle_MainActivity", "onPose");
-        now_info = ""; // 取得している医療行為の情報を初期化
+        displayInfoFlag = false; // 情報非表示状態に設定
+        getRunnig = false; // MainUI非表示状態に設定
     }
 
     @Override
@@ -402,88 +410,11 @@ public class MainActivity extends ActionMenuActivity{
         return new GetResultTaskSSL.Listener() {
             @Override
             public void onSuccess(String result){
-
-                if(result.equals("null")){
-                    Log.d("SystemCheck", "認識結果にnullが返ってきました．検出処理に問題があるかもしれません" + result);
-                    return;
-                }
-
-                if(getRunnig) { // 撮影中は取得
-                    Log.d("SystemCheck", "------------認識結果が返ってきました------------ " + result);
-
-                    if (now_info.isEmpty() && result.equals("unknown")) { // 医療行為は未特定
-                        Log.d("認識中", "医療行為未特定");
-                    }else{ // 何らかの医療行為が特定された場合
-                        if(now_info.isEmpty()){
-                            // 情報通知音
-                            if(experimentMode == 1){
-                                soundPlayer.playMechanicalSound();
-                            }else if(experimentMode == 2){ // 音声通知
-                                soundPlayer.playDisplayVoiceSound();
-                            }
-                            now_info = result;
-                            setInfo(now_info);
-                            displayInfoFlag = true;
-                        }else{
-                            if(result.equals(now_info)){ // 提示中の医療行為が再度認識されている場合
-                                Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
-                            }else if(result.equals("unknown")) {
-                                if(displayInfoFlag) {
-                                    Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
-                                    if(stopInfo()) {
-                                        iryo_name.setText(R.string.iryo_now_recognition_anew);
-                                        alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
-                                        attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
-                                        displayInfoFlag = false;
-                                    }
-                                    // 音声通知の場合 情報変更通知音
-                                    if(experimentMode == 2){
-                                        soundPlayer.playCheckingVoiceSound();
-                                    }
-                                }
-                            }else{ // 医療行為を取得した処理(再特定)
-                                Log.d("情報提示", "特定された医療行為の情報を提示します");
-                                if(displayInfoFlag) {
-                                    Log.d("認識結果変更 提示中断", "情報提示中に異なる特定結果を取得 情報提示を中断"); // unknownを取得する前に別の医療行為が特定された場合
-                                    if(stopInfo()) {
-                                        iryo_name.setVisibility(View.INVISIBLE); // 医療行為名を非表示
-                                        alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
-                                        attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
-                                    }
-                                }
-
-                                // 音声通知の場合 情報変更通知音
-                                if(experimentMode == 1){
-                                    soundPlayer.playMechanicalSound();
-                                }else if(experimentMode == 2){ // 音声通知
-                                    soundPlayer.playDisplayVoiceSound();
-                                }
-
-                                now_info = result;
-                                setInfo(now_info);
-                            }
-                        }
-                    }
-
-                    Log.d("latest_result", "最新特定結果 : " + now_info);
-                }
-
-                new Thread(new Runnable() {
-                    public void run() {
-                        try {
-                            Thread.sleep(1000); // 1秒待機
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
-                    }
-                });
-
-                GetResult();
+                controlInfo(result);
             }
         };
     }
     //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTPS接続時使用 研究室用――――――――――――――――――――――――――――――――――――――――――――――――――
-
 
     //――――――――――――――――――――――――――――――――――――――――――――認識結果確認 HTTP接続時使用 現地用――――――――――――――――――――――――――――――――――――――――――――――――――
     private GetResultTask.Listener g_createListener() {
@@ -498,32 +429,30 @@ public class MainActivity extends ActionMenuActivity{
 
     public void controlInfo(String result){
 
-        if(result.equals("null")){
-            Log.d("SystemCheck", "認識結果にnullが返ってきました．検出処理に問題があるかもしれません" + result);
-            return;
-        }
+        Log.d("SystemCheck", "------------認識結果が返ってきました------------ " + result);
 
         if(getRunnig) { // 撮影中は取得
-            Log.d("SystemCheck", "------------認識結果が返ってきました------------ " + result);
 
             if (now_info.isEmpty() && result.equals("unknown")) { // 医療行為は未特定
                 Log.d("認識中", "医療行為未特定");
+            }else if(!(result.equals("kotuzui") || result.equals("youtui") || result.equals("catheter") || result.equals("blood"))){
+                Log.d("SystemCheck", "想定外の結果が返されました．検出処理に問題があるかもしれません　" + result);
             }else{ // 何らかの医療行為が特定された場合
-                if(now_info.isEmpty()){
+                if(result.equals(now_info)){ // 提示中の医療行為が再度認識されている場合
+                    Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
+                }else if(now_info.isEmpty() || now_info.equals("setting")){ // 初回特定 or 手技熟練度設定変更後
                     // 情報通知音
                     if(experimentMode == 1){
                         soundPlayer.playMechanicalSound();
-                    }else if(experimentMode == 2){ // 音声通知
+                    }else if(experimentMode == 2){
                         soundPlayer.playDisplayVoiceSound();
                     }
                     now_info = result;
                     setInfo(now_info);
                     displayInfoFlag = true;
                 }else{
-                    if(result.equals(now_info)){ // 提示中の医療行為が再度認識されている場合
-                        Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
-                    }else if(result.equals("unknown")) {
-                        if(displayInfoFlag) {
+                    if(result.equals("unknown")) { // 特定後に特定結果が変更される場合
+                        if(displayInfoFlag){
                             Log.d("再認識", "提示している情報の信頼性が低下したため再認識に移行");
                             if(stopInfo()) {
                                 iryo_name.setText(R.string.iryo_now_recognition_anew);
@@ -532,23 +461,28 @@ public class MainActivity extends ActionMenuActivity{
                                 displayInfoFlag = false;
                             }
                             // 音声通知の場合 情報変更通知音
-                            if(experimentMode == 2){
+                            if (experimentMode == 1) {
+                                soundPlayer.playMechanicalSound();
+                            }else if(experimentMode == 2){
                                 soundPlayer.playCheckingVoiceSound();
                             }
                         }
                     }else{ // 医療行為を取得した処理(再特定)
                         Log.d("情報提示", "特定された医療行為の情報を提示します");
-                        if(displayInfoFlag) {
+                        if(displayInfoFlag){
                             Log.d("認識結果変更 提示中断", "情報提示中に異なる特定結果を取得 情報提示を中断"); // unknownを取得する前に別の医療行為が特定された場合
-                            if(stopInfo()) {
+                            if(stopInfo()){
                                 iryo_name.setVisibility(View.INVISIBLE); // 医療行為名を非表示
                                 alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
                                 attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
                             }
                         }
 
+                        Log.d("情報変更通知", "特定結果が変更されたの通知"); // unknownを取得する前に別の医療行為が特定された場合
                         // 音声通知の場合 情報変更通知音
-                        if(experimentMode == 2){
+                        if (experimentMode == 1) {
+                            soundPlayer.playMechanicalSound();
+                        } else if (experimentMode == 2) { // 音声通知
                             soundPlayer.playCorrectVoiceSound();
                         }
 
@@ -561,17 +495,12 @@ public class MainActivity extends ActionMenuActivity{
             Log.d("latest_result", "最新特定結果 : " + now_info);
         }
 
-        new Thread(new Runnable() {
+        getResultDelayHandler.postDelayed(getResultDelayRun = new Runnable() { // 負荷軽減のため0.1秒待機
+            @Override
             public void run() {
-                try {
-                    Thread.sleep(1000); // 1秒待機
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
+                GetResult();
             }
-        });
-
-        GetResult();
+        }, 100);
 
     }
 
@@ -650,6 +579,7 @@ public class MainActivity extends ActionMenuActivity{
         super.onDestroy();
         shotHandler.removeCallbacks(shotRun);
         getResultHandler.removeCallbacks(getResultRun);
+        getResultDelayHandler.removeCallbacks(getResultDelayRun);
         mPreview.surfaceDestroyed(mPreview.returnHolder());
         saveLogHandler.removeCallbacks(saveLogRun);
         saveLog.stopSaveLog();
