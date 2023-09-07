@@ -299,6 +299,7 @@ public class MainActivity extends ActionMenuActivity{
         alert_level.setText("");
         attention_info.setText("");
         iryo_name.setText(getResources().getString(R.string.iryo_name_default));
+        captureButton.setFocusableInTouchMode(true);
         Log.v("LifeCycle_MainActivity", "onStart");
     }
 
@@ -327,13 +328,7 @@ public class MainActivity extends ActionMenuActivity{
 
     /** Check if this device has a camera */
     private boolean checkCameraHardware(Context context) {
-        if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)){
-            // this device has a camera
-            return true;
-        } else {
-            // no camera on this device
-            return false;
-        }
+        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA);
     }
 
     public static Camera getCameraInstance(){
@@ -435,7 +430,7 @@ public class MainActivity extends ActionMenuActivity{
 
             if (now_info.isEmpty() && result.equals("unknown")) { // 医療行為は未特定
                 Log.d("認識中", "医療行為未特定");
-            }else if(!(result.equals("kotuzui") || result.equals("youtui") || result.equals("catheter") || result.equals("blood"))){
+            }else if(!(result.equals("kotuzui") || result.equals("youtui") || result.equals("catheter") || result.equals("blood") || result.equals("unknown"))){
                 Log.d("SystemCheck", "想定外の結果が返されました．検出処理に問題があるかもしれません　" + result);
             }else{ // 何らかの医療行為が特定された場合
                 if(result.equals(now_info)){ // 提示中の医療行為が再度認識されている場合
@@ -458,6 +453,7 @@ public class MainActivity extends ActionMenuActivity{
                                 iryo_name.setText(R.string.iryo_now_recognition_anew);
                                 alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
                                 attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
+                                now_info = "";
                                 displayInfoFlag = false;
                             }
                             // 音声通知の場合 情報変更通知音
@@ -530,35 +526,26 @@ public class MainActivity extends ActionMenuActivity{
 
     //情報提示プログラム停止用関数
     public boolean stopInfo(){
-        switch (now_info) {
-            case "kotuzui":
-                if(kotuzui.stopThread()){ //情報提示用マルチスレッドを中断
-                    kotuzui = new SetInfo_kotuzui(MainActivity.this); //注意喚起情報を提示するクラスのインスタンスを再生成
-                    return true;
-                }else{
-                    return false;
-                }
-            case "youtui":
-                if(youtui.stopThread()) {
-                    youtui = new SetInfo_youtui(MainActivity.this);
-                    return true;
-                }else {
-                    return false;
-                }
-            case "catheter":
-                if(catheter.stopThread()) {
-                    catheter = new SetInfo_catheter(MainActivity.this);
-                    return true;
-                }else {
-                    return false;
-                }
-            case "blood":
-                if(blood.stopThread()) {
-                    blood = new SetInfo_blood(MainActivity.this);
-                    return true;
-                }else {
-                    return false;
-                }
+        if(now_info.equals("kotuzui")){
+            if(kotuzui.stopThread()){ //情報提示用マルチスレッドを中断
+                kotuzui = new SetInfo_kotuzui(MainActivity.this); //注意喚起情報を提示するクラスのインスタンスを再生成
+                return true;
+            }
+        }else if(now_info.equals("youtui")){
+            if(youtui.stopThread()) {
+                youtui = new SetInfo_youtui(MainActivity.this);
+                return true;
+            }
+        }else if(now_info.equals("catheter")){
+            if(catheter.stopThread()) {
+                catheter = new SetInfo_catheter(MainActivity.this);
+                return true;
+            }
+        }else if(now_info.equals("blood")){
+            if(blood.stopThread()) {
+                blood = new SetInfo_blood(MainActivity.this);
+                return true;
+            }
         }
         return false;
     }
