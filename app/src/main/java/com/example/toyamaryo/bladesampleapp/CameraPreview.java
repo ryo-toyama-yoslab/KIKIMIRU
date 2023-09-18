@@ -3,14 +3,10 @@ package com.example.toyamaryo.bladesampleapp;
 import android.content.Context;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
-import android.os.Environment;
 import android.util.Log;
-import android.hardware.Camera.Size;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.widget.Toast;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 

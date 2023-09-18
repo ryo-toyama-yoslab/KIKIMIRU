@@ -45,6 +45,8 @@ public class MainActivity extends ActionMenuActivity{
     private Handler mainHandler;
     private Handler shotHandler;
     private Runnable shotRun;
+    private Handler shotDelayHandler;
+    private Runnable shotDelayRun;
     private Handler getResultHandler;
     private Runnable getResultRun;
     private Handler getResultDelayHandler;
@@ -125,6 +127,7 @@ public class MainActivity extends ActionMenuActivity{
         // Handler生成(handlerはThread内で生成できない)
         mainHandler = new Handler(); // 情報提示中の中断通知用Handlerを生成
         shotHandler = new Handler(); // 撮影スレッドの停止用Handlerを生成
+        shotDelayHandler = new Handler(); // 撮影スレッドを定期実行用
         getResultHandler = new Handler(); // 結果取得用スレッドの停止用Handlerを生成
         getResultDelayHandler = new Handler(); // 結果取得を定期実行するための
         saveLogHandler = new Handler(); // ログ保存スレッドの停止用Handlerを生成
@@ -149,8 +152,9 @@ public class MainActivity extends ActionMenuActivity{
                 url_get = "https://grapefruit.sys.wakayama-u.ac.jp/~toyama/kikimiru_server/returnRecognitionResult.php";
                 break;
             case "prod":
-                url = "http://172.30.184.57/~toyama/getImage.php";
-                url_get = "http://172.30.184.57/~toyama/returnRecognitionResult.php";
+                Log.d("医大用URIを設定","prod mode ,so insert idai url_get");
+                url = "http://172.30.184.57/~toyama/kikimiru_server/getImage.php";
+                url_get = "http://172.30.184.57/~toyama/kikimiru_server/returnRecognitionResult.php";
                 break;
         }
 
@@ -213,14 +217,20 @@ public class MainActivity extends ActionMenuActivity{
                 moveTaskToBack(true); // アプリケーション全体を中断 onDestroy()が呼ばれなければonRestart()で再開
 
                 // 非同期処理リスナー解放
-                switch (run_env) {
-                    case "debug":
-                        getResultTaskSSL.removeListener(g_createListenerSSL());
-                        break;
-                    case "prod":
-                        getResultTask.removeListener(g_createListener());
-                        break;
+                try{
+                    switch (run_env) {
+                        case "debug":
+                            getResultTaskSSL.removeListener(g_createListenerSSL());
+                            break;
+                        case "prod":
+                            getResultTask.removeListener(g_createListener());
+                            break;
+                    }
+                }catch(Exception e){
+                    Log.d("Listener remove Error", e.toString());
                 }
+
+
                 try{
                     Log.d("アプリが終了するまで5秒 : ", "待機開始");
                     Thread.sleep(5000); // 5秒待機
@@ -364,19 +374,18 @@ public class MainActivity extends ActionMenuActivity{
                         break;
                 }
 
-                new Thread(new Runnable() {
+                shotDelayHandler.postDelayed(shotDelayRun = new Runnable() { // 負荷軽減のため0.1秒待機
+                    @Override
                     public void run() {
                         try {
-                            Thread.sleep(100); // 0.1秒待機　早すぎて撮影画像がブレる対策
-                        }catch (Exception e){
-                            e.printStackTrace();
+                            mCamera.startPreview();//SurfaceViewの描画更新
+                            ContinueShot();//次の撮影
+                        }catch(Exception e){
+                            Log.d("撮影スレッドエラー : ", e.toString());
                         }
                     }
-                });
+                }, 100);
 
-                mCamera.startPreview();//SurfaceViewの描画更新
-
-                ContinueShot();//次の撮影
             }
         });
     }
@@ -565,6 +574,7 @@ public class MainActivity extends ActionMenuActivity{
     protected void onDestroy() {
         super.onDestroy();
         shotHandler.removeCallbacks(shotRun);
+        shotDelayHandler.removeCallbacks(shotDelayRun);
         getResultHandler.removeCallbacks(getResultRun);
         getResultDelayHandler.removeCallbacks(getResultDelayRun);
         mPreview.surfaceDestroyed(mPreview.returnHolder());
