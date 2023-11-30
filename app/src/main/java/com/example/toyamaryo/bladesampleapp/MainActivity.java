@@ -460,7 +460,11 @@ public class MainActivity extends ActionMenuActivity{
                     if(experimentMode == 2){
                         soundPlayer.playMechanicalSound();
                     }else if(experimentMode == 3){
-                        soundPlayer.playDisplayVoiceSound();
+                        if(result.equals("kotuzui")){
+                            soundPlayer.playReadingKotuzuiInfoSound(1);
+                        }else {
+                            soundPlayer.playDisplayVoiceSound();
+                        }
                     }
                     now_info = result;
                     setInfo(now_info);
@@ -499,7 +503,7 @@ public class MainActivity extends ActionMenuActivity{
                         if (experimentMode == 2) {
                             soundPlayer.playMechanicalSound();
                         } else if (experimentMode == 3) { // 音声通知
-                            soundPlayer.playCorrectVoiceSound();
+                            soundPlayer.playChangeVoiceSound();
                         }
 
                         now_info = result;

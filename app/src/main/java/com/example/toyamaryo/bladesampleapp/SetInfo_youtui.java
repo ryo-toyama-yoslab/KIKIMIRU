@@ -113,7 +113,7 @@ public class SetInfo_youtui {
                 if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
                 } else if (experimentMode == 3) {
-                    soundPlayer.playCorrectVoiceSound();
+                    soundPlayer.playChangeVoiceSound();
                 }
             }
 
@@ -146,7 +146,7 @@ public class SetInfo_youtui {
                 if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
                 } else if (experimentMode == 3) {
-                    soundPlayer.playCorrectVoiceSound();
+                    soundPlayer.playChangeVoiceSound();
                 }
             }
 

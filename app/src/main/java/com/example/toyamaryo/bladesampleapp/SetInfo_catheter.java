@@ -111,7 +111,7 @@ public class SetInfo_catheter {
                 if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
                 } else if (experimentMode == 3) {
-                    soundPlayer.playCorrectVoiceSound();
+                    soundPlayer.playChangeVoiceSound();
                 }
             }
 

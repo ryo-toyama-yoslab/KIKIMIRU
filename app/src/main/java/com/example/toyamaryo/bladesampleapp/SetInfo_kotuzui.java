@@ -86,6 +86,8 @@ public class SetInfo_kotuzui {
         if(level == 1) {
             Log.d("骨髄穿刺_レベル1", "骨髄穿刺レベル1の情報を提示");
 
+            soundPlayer.playReadingKotuzuiInfoSound(level);
+
             // 医療行為名設定
             if(!medNameSetOrNot) {
                 setMedicalName();
@@ -117,7 +119,7 @@ public class SetInfo_kotuzui {
                     soundPlayer.playMechanicalSound();
                 } else if (experimentMode == 3) {
                     Log.d("骨髄穿刺 音声通知", "second");
-                    soundPlayer.playCorrectVoiceSound();
+                    soundPlayer.playChangeVoiceSound();
                 }
             }
 
@@ -150,7 +152,7 @@ public class SetInfo_kotuzui {
                 if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
                 } else if (experimentMode == 3) {
-                    soundPlayer.playCorrectVoiceSound();
+                    soundPlayer.playChangeVoiceSound();
                 }
             }
 
