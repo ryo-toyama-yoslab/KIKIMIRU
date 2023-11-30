@@ -33,6 +33,9 @@ public class Setting extends Activity {
 
         Intent intentMain = getIntent();
 
+        // 一番上のボタンにフォーカスしておく
+        s1.requestFocus();
+
         //alertLevel = Integer.parseInt(intentMain.getStringExtra("nowLevel"));
         Log.d("現在のアラートレベル",Integer.toString(intentMain.getIntExtra("nowLevel",0)));
         alertLevel = intentMain.getIntExtra("nowLevel",0);
