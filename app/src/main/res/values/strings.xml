@@ -33,6 +33,7 @@
     <string name="iryo_name_YoutuiSensi">医療行為：腰椎穿刺</string>
     <string name="iryo_name_KetuekiBaiyou">医療行為：血液培養</string>
     <string name="explain_run_mode">実行モードの設定</string>
-    <string name="run_mode_sound_text">mode ①</string>
-    <string name="run_mode_voice_text">mode ②</string>
+    <string name="run_mode_no_sound_text">mode ①</string>
+    <string name="run_mode_sound_text">mode ②</string>
+    <string name="run_mode_voice_text">mode ③</string>
 </resources>
