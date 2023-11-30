@@ -7,11 +7,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-
 public class SetInfo_kotuzui {
     private Activity mActivity;
     // Sound設定
@@ -40,9 +35,11 @@ public class SetInfo_kotuzui {
              3 : 手技熟練度 高
 
             experimentMode
-             1 : 機械音通知
-             2 : 音声通知
+             1 : 通知音無し
+             2 : 機械音通知
+             3 : 音声通知
         */
+
         this.experimentMode = experimentMode;
         this.handler = handler;
         exitThread = true;
@@ -116,9 +113,9 @@ public class SetInfo_kotuzui {
 
             ///スピーカー鳴音
             if(!firstSetInfo){ // 2個目以降の情報提示
-                if (experimentMode == 1) {
+                if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
-                } else if (experimentMode == 2) {
+                } else if (experimentMode == 3) {
                     Log.d("骨髄穿刺 音声通知", "second");
                     soundPlayer.playCorrectVoiceSound();
                 }
@@ -150,9 +147,9 @@ public class SetInfo_kotuzui {
 
             ///スピーカー鳴音
             if(!firstSetInfo){ // 2個目以降の情報提示
-                if (experimentMode == 1) {
+                if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
-                } else if (experimentMode == 2) {
+                } else if (experimentMode == 3) {
                     soundPlayer.playCorrectVoiceSound();
                 }
             }

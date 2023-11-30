@@ -34,9 +34,11 @@ public class SetInfo_youtui {
              3 : 手技熟練度 高
 
             experimentMode
-             1 : 機械音通知
-             2 : 音声通知
+             1 : 通知音無し
+             2 : 機械音通知
+             3 : 音声通知
         */
+
         this.experimentMode = experimentMode;
         this.handler = handler;
         exitThread = true;
@@ -108,9 +110,9 @@ public class SetInfo_youtui {
 
             ///スピーカー鳴音
             if(!firstSetInfo){ // 2個目以降の情報提示
-                if (experimentMode == 1) {
+                if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
-                } else if (experimentMode == 2) {
+                } else if (experimentMode == 3) {
                     soundPlayer.playCorrectVoiceSound();
                 }
             }
@@ -141,9 +143,9 @@ public class SetInfo_youtui {
 
             ///スピーカー鳴音
             if(!firstSetInfo){ // 2個目以降の情報提示
-                if (experimentMode == 1) {
+                if (experimentMode == 2) {
                     soundPlayer.playMechanicalSound();
-                } else if (experimentMode == 2) {
+                } else if (experimentMode == 3) {
                     soundPlayer.playCorrectVoiceSound();
                 }
             }

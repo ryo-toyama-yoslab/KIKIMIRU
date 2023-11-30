@@ -33,8 +33,9 @@ public class SetInfo_blood {
              3 : 手技熟練度 高
 
             experimentMode
-             1 : 機械音通知
-             2 : 音声通知
+             1 : 通知音無し
+             2 : 機械音通知
+             3 : 音声通知
         */
 
         this.experimentMode = experimentMode;
