@@ -65,7 +65,7 @@ public class MainActivity extends ActionMenuActivity{
     private String url_get = "";
 
     // 設定されている状態
-    private int experimentMode; // 実験手法切り替え　1 : 機械音通知, 2 : 音声通知
+    private int experimentMode; // 実験手法切り替え　1 : 通知音無し, 2 : 機械音通知, 3 : 音声通知
     private int nowLevel; // 手技熟練度の設定
 
     // Sound設定
@@ -86,6 +86,9 @@ public class MainActivity extends ActionMenuActivity{
     //ログ保存用クラスのインスタンス
     SaveLog saveLog;
 
+    Intent setting_intent;
+    Intent mode_intent;
+
     @Override
     protected final void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -104,7 +107,6 @@ public class MainActivity extends ActionMenuActivity{
         alert_level.setVisibility(View.INVISIBLE); // アラートレベルを表示
         attention_info.setVisibility(View.INVISIBLE); // 注意喚起情報を表示
 
-        captureButton.setFocusableInTouchMode(true);
 
         experimentMode = 0; // ユーザの選択した経験量レベル
         nowLevel = 0; // ユーザの選択した経験量レベル
@@ -206,10 +208,10 @@ public class MainActivity extends ActionMenuActivity{
                 Log.d("EndButton", "終了ボタンが押されました");
                 try {
                     if(stopInfo()) {
-                        Log.d("情報提示スレッド停止 : ", "成功");
+                        Log.d("情報提示スレッド停止", "成功");
                     }
                 } catch (Exception e) {
-                    Log.d("情報提示スレッド停止エラー", e.toString());
+                    Log.e("情報提示スレッド停止エラー", e.toString());
                     e.printStackTrace();
                 }
 
@@ -226,8 +228,9 @@ public class MainActivity extends ActionMenuActivity{
                             getResultTask.removeListener(g_createListener());
                             break;
                     }
+                    Log.d("認識結果スレッド停止", "成功");
                 }catch(Exception e){
-                    Log.d("Listener remove Error", e.toString());
+                    Log.e("認識結果スレッド停止", "失敗 " + e.toString());
                 }
 
 
@@ -235,7 +238,7 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("アプリが終了するまで5秒 : ", "待機開始");
                     Thread.sleep(5000); // 5秒待機
                 } catch (Exception e) {
-                    Log.d("アプリ終了待機中エラー", e.toString());
+                    Log.e("アプリ終了待機中エラー", e.toString());
                 }
                 Log.d("アプリケーション KIKIMIRU: ", "終了します");
                 finish(); //アプリケーション終了 再開時はonCreate()から
@@ -292,12 +295,10 @@ public class MainActivity extends ActionMenuActivity{
         }
 
         // 設定画面を表示
-        Intent setting_intent = new Intent(getApplication(), Setting.class);
-        setting_intent.putExtra("nowLevel",nowLevel);
-        startActivityForResult(setting_intent,1002);
+        setting_intent = new Intent(getApplication(), Setting.class);
 
         // 実行モード画面を表示(設定画面の上)
-        Intent mode_intent = new Intent(getApplication(), CheckoutRunMode.class);
+        mode_intent = new Intent(getApplication(), CheckoutRunMode.class);
         mode_intent.putExtra("experimentMode",experimentMode);
         startActivityForResult(mode_intent,1001);
     }
@@ -305,12 +306,21 @@ public class MainActivity extends ActionMenuActivity{
     @Override
     public void onStart(){ // リソースの確保・UIの更新
         super.onStart();
+        Log.v("LifeCycle_MainActivity", "onStart");
         getRunnig = true; // MainUI表示状態に設定
         alert_level.setText("");
         attention_info.setText("");
         iryo_name.setText(getResources().getString(R.string.iryo_name_default));
         captureButton.setFocusableInTouchMode(true);
-        Log.v("LifeCycle_MainActivity", "onStart");
+
+        // 撮影ボタンにフォーカスしておく
+        captureButton.requestFocus();
+
+        if((experimentMode != 0) && (nowLevel == 0)){
+            setting_intent.putExtra("nowLevel",nowLevel);
+            startActivityForResult(setting_intent,1002);
+        }
+
     }
 
     @Override
@@ -381,7 +391,8 @@ public class MainActivity extends ActionMenuActivity{
                             mCamera.startPreview();//SurfaceViewの描画更新
                             ContinueShot();//次の撮影
                         }catch(Exception e){
-                            Log.d("撮影スレッドエラー : ", e.toString());
+                            Log.e("撮影スレッドエラー : ", e.toString());
+                            shotDelayHandler.removeCallbacks(shotDelayRun);
                         }
                     }
                 }, 100);
@@ -446,9 +457,9 @@ public class MainActivity extends ActionMenuActivity{
                     Log.d("情報変更無し", "提示中の情報と同じ結果のため変更なしと判断");
                 }else if(now_info.isEmpty() || now_info.equals("setting")){ // 初回特定 or 手技熟練度設定変更後
                     // 情報通知音
-                    if(experimentMode == 1){
+                    if(experimentMode == 2){
                         soundPlayer.playMechanicalSound();
-                    }else if(experimentMode == 2){
+                    }else if(experimentMode == 3){
                         soundPlayer.playDisplayVoiceSound();
                     }
                     now_info = result;
@@ -466,9 +477,9 @@ public class MainActivity extends ActionMenuActivity{
                                 displayInfoFlag = false;
                             }
                             // 音声通知の場合 情報変更通知音
-                            if (experimentMode == 1) {
+                            if (experimentMode == 2) {
                                 soundPlayer.playMechanicalSound();
-                            }else if(experimentMode == 2){
+                            }else if(experimentMode == 3){
                                 soundPlayer.playCheckingVoiceSound();
                             }
                         }
@@ -485,9 +496,9 @@ public class MainActivity extends ActionMenuActivity{
 
                         Log.d("情報変更通知", "特定結果が変更されたの通知"); // unknownを取得する前に別の医療行為が特定された場合
                         // 音声通知の場合 情報変更通知音
-                        if (experimentMode == 1) {
+                        if (experimentMode == 2) {
                             soundPlayer.playMechanicalSound();
-                        } else if (experimentMode == 2) { // 音声通知
+                        } else if (experimentMode == 3) { // 音声通知
                             soundPlayer.playCorrectVoiceSound();
                         }
 
@@ -498,15 +509,16 @@ public class MainActivity extends ActionMenuActivity{
             }
 
             Log.d("latest_result", "最新特定結果 : " + now_info);
+
+
+            getResultDelayHandler.postDelayed(getResultDelayRun = new Runnable() { // 負荷軽減のため0.1秒待機
+                @Override
+                public void run() {
+                    Log.d("debug","認識結果をGETします");
+                    GetResult();
+                }
+            }, 100);
         }
-
-        getResultDelayHandler.postDelayed(getResultDelayRun = new Runnable() { // 負荷軽減のため0.1秒待機
-            @Override
-            public void run() {
-                GetResult();
-            }
-        }, 100);
-
     }
 
     //情報提示プログラム実行用関数
@@ -574,9 +586,13 @@ public class MainActivity extends ActionMenuActivity{
     protected void onDestroy() {
         super.onDestroy();
         shotHandler.removeCallbacks(shotRun);
+        shotHandler = null;
         shotDelayHandler.removeCallbacks(shotDelayRun);
+        shotDelayHandler = null;
         getResultHandler.removeCallbacks(getResultRun);
+        getResultHandler = null;
         getResultDelayHandler.removeCallbacks(getResultDelayRun);
+        getResultDelayHandler = null;
         mPreview.surfaceDestroyed(mPreview.returnHolder());
         saveLogHandler.removeCallbacks(saveLogRun);
         saveLog.stopSaveLog();
